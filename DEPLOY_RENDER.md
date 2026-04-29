@@ -37,3 +37,4 @@ Example:
   - cleanup is processed on webhook calls
   - cleanup is also processed when operators open the app
   - if the app has no traffic for some time, message cleanup can happen with delay
+- On the free plan Render does not support `preDeployCommand`, so database migrations run inside the web service start command.
