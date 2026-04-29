@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Магазин телефонов{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --bg-main: #f4f6fb;
+            --bg-surface: #ffffff;
+            --bg-soft: #eef3ff;
+            --text-main: #18212f;
+            --text-muted: #6b7280;
+            --line-soft: #e6eaf2;
+            --shadow-soft: 0 10px 30px rgba(24, 33, 47, 0.08);
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --brand: #1d4ed8;
+            --brand-dark: #173ea6;
+            --success-soft: #e8f7ee;
+            --warning-soft: #fff4db;
+            --danger-soft: #fdeaea;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 28%),
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 24%),
+                var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            min-height: 100vh;
+            transition: grid-template-columns 0.22s ease;
+        }
+
+        .app-shell.sidebar-collapsed {
+            grid-template-columns: 92px minmax(0, 1fr);
+        }
+
+        .app-sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.15rem 0.95rem;
+            background:
+                radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 26%),
+                linear-gradient(180deg, #172033 0%, #202c45 54%, #182338 100%);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 18px 0 42px rgba(15, 23, 42, 0.12);
+            color: rgba(255, 255, 255, 0.82);
+            z-index: 1020;
+            transition: padding 0.22s ease;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.5rem 0.5rem 1.1rem;
+            margin-bottom: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .sidebar-brand:hover {
+            color: #fff;
+        }
+
+        .sidebar-brand-icon {
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 1.1rem;
+        }
+
+        .sidebar-brand-title {
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            font-size: 1.3rem;
+            line-height: 1.04;
+            transition: opacity 0.18s ease, width 0.18s ease;
+        }
+
+        .sidebar-label {
+            padding: 0 0.65rem;
+            margin-bottom: 0.55rem;
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            transition: opacity 0.18s ease;
+        }
+
+        .sidebar-nav {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .sidebar-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            justify-content: space-between;
+            padding: 0.76rem 0.85rem;
+            border-radius: 15px;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.82);
+            transition: all 0.18s ease;
+            border: 1px solid transparent;
+            transition: all 0.18s ease, padding 0.18s ease;
+        }
+
+        .sidebar-link::before {
+            content: "";
+            position: absolute;
+            left: -0.2rem;
+            top: 10px;
+            bottom: 10px;
+            width: 4px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #93c5fd 0%, #2563eb 100%);
+            opacity: 0;
+            transform: scaleY(0.6);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .sidebar-link:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.055);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-link.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.34));
+            color: #fff;
+            box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.18);
+        }
+
+        .sidebar-link--alert {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(37, 99, 235, 0.22));
+            border-color: rgba(147, 197, 253, 0.18);
+            box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.12);
+            animation: sidebarLinkPulse 1.35s ease-in-out infinite;
+        }
+
+        .sidebar-link.active::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        .sidebar-link-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        .sidebar-link-label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            transition: opacity 0.18s ease, width 0.18s ease;
+        }
+
+        .sidebar-link i {
+            font-size: 1rem;
+            width: 1.1rem;
+            text-align: center;
+        }
+
+        .sidebar-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 0.45rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .sidebar-badge--new {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: #1d4ed8;
+        }
+
+        .sidebar-badge--alert {
+            animation: sidebarPulse 1.35s ease-in-out infinite;
+        }
+
+        .sidebar-badge--work {
+            background: #fef3c7;
+            border-color: #facc15;
+            color: #854d0e;
+        }
+
+        @keyframes sidebarPulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.28);
+            }
+            70% {
+                transform: scale(1.06);
+                box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+
+        @keyframes sidebarLinkPulse {
+            0% {
+                transform: translateX(0);
+            }
+            50% {
+                transform: translateX(2px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .sidebar-divider {
+            margin: 1rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            transition: opacity 0.18s ease;
+        }
+
+        .sidebar-footnote {
+            margin-top: auto;
+            padding: 0.9rem 0.85rem 0;
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.78rem;
+            line-height: 1.45;
+            transition: opacity 0.18s ease;
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            display: grid;
+            gap: 0.9rem;
+            padding-top: 0.9rem;
+        }
+
+        .sidebar-shortcuts {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .sidebar-shortcut {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            width: 100%;
+            padding: 0.72rem 0.8rem;
+            border-radius: 14px;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.88);
+            font-weight: 600;
+            transition: all 0.18s ease;
+        }
+
+        .sidebar-shortcut:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .sidebar-shortcut-label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: opacity 0.18s ease, width 0.18s ease;
+        }
+
+        .sidebar-collapse-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            width: 100%;
+            min-height: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            box-shadow: none;
+        }
+
+        .sidebar-collapse-btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #fff;
+        }
+
+        .sidebar-collapse-label {
+            font-weight: 600;
+            white-space: nowrap;
+            transition: opacity 0.18s ease, width 0.18s ease;
+        }
+
+        .app-shell.sidebar-collapsed .app-sidebar {
+            padding-left: 0.7rem;
+            padding-right: 0.7rem;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-brand {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-brand-title,
+        .app-shell.sidebar-collapsed .sidebar-label,
+        .app-shell.sidebar-collapsed .sidebar-link-label,
+        .app-shell.sidebar-collapsed .sidebar-divider,
+        .app-shell.sidebar-collapsed .sidebar-footnote,
+        .app-shell.sidebar-collapsed .sidebar-collapse-label,
+        .app-shell.sidebar-collapsed .sidebar-shortcut-label {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-link {
+            justify-content: center;
+            padding-left: 0.65rem;
+            padding-right: 0.65rem;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-link-main {
+            gap: 0;
+            justify-content: center;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-link i {
+            width: auto;
+            font-size: 1.08rem;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 0.28rem;
+            font-size: 0.68rem;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-collapse-btn {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .app-shell.sidebar-collapsed .sidebar-shortcut {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .offcanvas .sidebar-link {
+            color: var(--text-main);
+        }
+
+        .offcanvas .sidebar-link:hover {
+            color: var(--text-main);
+            background: #eef3ff;
+        }
+
+        .offcanvas .sidebar-link.active {
+            color: #fff;
+        }
+
+        .offcanvas .sidebar-badge {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+
+        .offcanvas .sidebar-badge--new {
+            background: #dbeafe;
+            border-color: #93c5fd;
+            color: #1d4ed8;
+        }
+
+        .offcanvas .sidebar-badge--work {
+            background: #fef3c7;
+            border-color: #facc15;
+            color: #854d0e;
+        }
+
+        .app-main {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 1010;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: rgba(244, 246, 251, 0.84);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(230, 234, 242, 0.9);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-left: auto;
+        }
+
+        .topbar-user-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.6rem 0.9rem;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid var(--line-soft);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .topbar-logout {
+            border-radius: 999px;
+        }
+
+        .sidebar-toggler {
+            display: none;
+        }
+
+        .dropdown-menu {
+            border: 1px solid var(--line-soft);
+            border-radius: 16px;
+            box-shadow: 0 14px 34px rgba(24, 33, 47, 0.12);
+            padding: 0.5rem;
+        }
+
+        .dropdown-item {
+            border-radius: 12px;
+            padding: 0.65rem 0.8rem;
+        }
+
+        .dropdown-item:hover {
+            background: #f4f8ff;
+        }
+
+        .page-shell {
+            width: 100%;
+            padding: 1.5rem;
+            padding-bottom: 2rem;
+        }
+
+        .page-shell.page-shell--wide {
+            max-width: none;
+            padding-left: 1.15rem;
+            padding-right: 1.15rem;
+        }
+
+        .card {
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .card-header {
+            border-bottom: 1px solid var(--line-soft) !important;
+        }
+
+        .btn {
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: var(--brand);
+            border-color: var(--brand);
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 12px;
+            border-color: #d8deea;
+            min-height: 46px;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #8eb4ff;
+            box-shadow: 0 0 0 0.2rem rgba(29, 78, 216, 0.12);
+        }
+
+        textarea.form-control {
+            min-height: unset;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table > :not(caption) > * > * {
+            padding: 0.9rem 0.85rem;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            background: #f8faff;
+            color: #4a5568;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f8fbff;
+        }
+
+        .page-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--line-soft);
+            background:
+                radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 34%),
+                linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .page-heading h1 {
+            margin: 0;
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            white-space: normal;
+            line-height: 1.1;
+        }
+
+        .page-heading-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            max-width: 100%;
+        }
+
+        .page-heading-actions:empty {
+            display: none;
+        }
+
+        .page-heading:not(:has(.page-heading-actions:not(:empty))) {
+            justify-content: flex-start;
+            padding-right: 1.25rem;
+        }
+
+        .alert {
+            border: 0;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(24, 33, 47, 0.08);
+        }
+
+        .badge {
+            letter-spacing: 0.01em;
+        }
+
+        .soft-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .section-card {
+            border: 1px solid var(--line-soft);
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .section-card .card-header {
+            background: transparent !important;
+            padding: 1rem 1.2rem;
+        }
+
+        .section-card .card-body {
+            padding: 1.25rem;
+        }
+
+        .section-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .section-toolbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .table-shell {
+            border: 1px solid var(--line-soft);
+            border-radius: 18px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .table-shell .table thead th {
+            background: #f8faff;
+        }
+
+        .stack-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .soft-note {
+            padding: 1rem 1.1rem;
+            border-radius: 18px;
+            background: #f8fbff;
+            border: 1px solid #dbe6fb;
+        }
+
+        .stat-card {
+            border-radius: 18px;
+            padding: 1.25rem;
+            color: var(--text-main);
+            border: 1px solid transparent;
+            height: 100%;
+        }
+
+        .stat-card h6 {
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-primary {
+            background: linear-gradient(180deg, #edf4ff 0%, #dbeafe 100%);
+            border-color: #c7dbff;
+        }
+
+        .stat-success {
+            background: linear-gradient(180deg, #eefcf3 0%, #dcfce7 100%);
+            border-color: #c2efd1;
+        }
+
+        .stat-warning {
+            background: linear-gradient(180deg, #fff8e8 0%, #fef3c7 100%);
+            border-color: #f4dfa1;
+        }
+
+        .section-note {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .page-hero-card {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 28%),
+                radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.15), transparent 22%),
+                linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+        }
+
+        .page-hero-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.45rem 0.8rem;
+            border-radius: 999px;
+            background: #edf4ff;
+            color: #1d4ed8;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .page-hero-title {
+            font-size: 2rem;
+            line-height: 1.03;
+            letter-spacing: -0.04em;
+            font-weight: 800;
+            margin: 0.85rem 0 0.7rem;
+        }
+
+        .page-hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1.35rem;
+        }
+
+        .panel-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.45rem 0.8rem;
+            border-radius: 999px;
+            background: #f8fbff;
+            border: 1px solid #dbe6fb;
+            color: #385079;
+            font-size: 0.84rem;
+            font-weight: 600;
+        }
+
+        .surface-subtle {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .ops-btn {
+            min-height: 40px;
+            padding: 0.62rem 0.84rem;
+            border-radius: 12px;
+            border-width: 1px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            line-height: 1.1;
+            box-shadow: none;
+            transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .ops-btn:hover {
+            transform: none;
+        }
+
+        .ops-btn i {
+            margin-right: 0.35rem;
+        }
+
+        .ops-btn.ops-btn-sm,
+        .btn-sm.ops-btn {
+            min-height: 34px;
+            padding: 0.48rem 0.72rem;
+            border-radius: 10px;
+            font-size: 0.84rem;
+        }
+
+        .ops-btn-primary,
+        .btn.ops-btn-primary {
+            background: #1e293b;
+            border-color: #1e293b;
+            color: #fff;
+        }
+
+        .ops-btn-primary:hover,
+        .btn.ops-btn-primary:hover,
+        .ops-btn-primary:focus,
+        .btn.ops-btn-primary:focus {
+            background: #111827;
+            border-color: #111827;
+            color: #fff;
+        }
+
+        .ops-btn-secondary,
+        .btn.ops-btn-secondary {
+            background: #fff;
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+
+        .ops-btn-secondary:hover,
+        .btn.ops-btn-secondary:hover,
+        .ops-btn-secondary:focus,
+        .btn.ops-btn-secondary:focus {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .ops-btn-danger,
+        .btn.ops-btn-danger {
+            background: #fff;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+
+        .ops-btn-danger:hover,
+        .btn.ops-btn-danger:hover,
+        .ops-btn-danger:focus,
+        .btn.ops-btn-danger:focus {
+            background: #fff5f5;
+            border-color: #fca5a5;
+            color: #b91c1c;
+        }
+
+        .ops-btn-success,
+        .btn.ops-btn-success {
+            background: #fff;
+            border-color: #bbf7d0;
+            color: #15803d;
+        }
+
+        .ops-btn-success:hover,
+        .btn.ops-btn-success:hover,
+        .ops-btn-success:focus,
+        .btn.ops-btn-success:focus {
+            background: #f0fdf4;
+            border-color: #86efac;
+            color: #166534;
+        }
+
+        .ops-btn-static,
+        .btn.ops-btn-static {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            color: #475569;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .live-toast-stack {
+            position: fixed;
+            right: 1.2rem;
+            bottom: 1.2rem;
+            z-index: 2000;
+            display: grid;
+            gap: 0.75rem;
+            max-width: min(420px, calc(100vw - 2rem));
+        }
+
+        .live-toast {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 0.8rem;
+            align-items: start;
+            padding: 1rem 1rem;
+            border-radius: 18px;
+            background: rgba(17, 24, 39, 0.96);
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            animation: toastSlideIn 0.24s ease;
+        }
+
+        .live-toast--message {
+            border-color: rgba(59, 130, 246, 0.28);
+        }
+
+        .live-toast--new-request {
+            border-color: rgba(250, 204, 21, 0.4);
+            background: linear-gradient(135deg, rgba(66, 32, 6, 0.98) 0%, rgba(28, 20, 12, 0.98) 100%);
+        }
+
+        .live-toast--closed {
+            border-color: rgba(248, 113, 113, 0.28);
+            background: rgba(27, 24, 39, 0.98);
+        }
+
+        .live-toast__icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(59, 130, 246, 0.18);
+            color: #93c5fd;
+            font-size: 1.05rem;
+        }
+
+        .live-toast--closed .live-toast__icon {
+            background: rgba(248, 113, 113, 0.16);
+            color: #fca5a5;
+        }
+
+        .live-toast--new-request .live-toast__icon {
+            background: rgba(250, 204, 21, 0.18);
+            color: #fde68a;
+        }
+
+        .live-toast__eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.35rem;
+            font-size: 0.73rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.58);
+        }
+
+        .live-toast__title {
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+        }
+
+        .live-toast__text {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+
+        .live-toast__close {
+            border: 0;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0.1rem;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 991.98px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .app-shell.sidebar-collapsed {
+                grid-template-columns: 1fr;
+            }
+
+            .app-sidebar {
+                display: none;
+            }
+
+            .sidebar-toggler {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .topbar {
+                padding: 0.95rem 1rem;
+            }
+
+            .topbar-user {
+                gap: 0.5rem;
+            }
+
+            .topbar-user-chip {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+            }
+
+            .page-shell {
+                padding: 1rem;
+                padding-bottom: 1.5rem;
+            }
+
+            .page-shell.page-shell--wide {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .page-heading {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .page-heading h1 {
+                font-size: 1.5rem;
+            }
+
+            .page-hero-title {
+                font-size: 1.65rem;
+            }
+        }
+
+        
+    </style>
+</head>
+<body data-auto-collapse-sidebar="{% if request.resolver_match.url_name == 'upload_pricelist' and request.GET.mode == 'manual' %}true{% else %}false{% endif %}">
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="sidebar-brand" href="{% url 'operators:dashboard' %}">
+                <span class="sidebar-brand-icon"><i class="bi bi-phone"></i></span>
+                <span class="sidebar-brand-title">Магазин телефонов</span>
+            </a>
+
+            <div class="sidebar-label">Навигация</div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'operators:dashboard' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="sidebar-link-label">Дашборд</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'manual_price_editor' or request.resolver_match.url_name == 'upload_pricelist' and request.GET.mode == 'manual' %}active{% endif %}" href="{% url 'operators:upload_pricelist' %}?mode=manual">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                        <span class="sidebar-link-label">Загрузка прайс-листов</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'comparison_table' %}active{% endif %}" href="{% url 'operators:comparison_table' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-table"></i>
+                        <span class="sidebar-link-label">Таблица сравнения</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'telegram_price_builder' %}active{% endif %}" href="{% url 'operators:telegram_price_builder' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-telegram"></i>
+                        <span class="sidebar-link-label">Прайс для Telegram</span>
+                    </span>
+                </a>
+                <a id="desktopRequestsLink" class="sidebar-link {% if request.resolver_match.url_name == 'telegram_requests' %}active{% endif %}" href="{% url 'operators:telegram_requests' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-chat-dots"></i>
+                        <span class="sidebar-link-label">Заявки Telegram</span>
+                    </span>
+                    <span
+                        id="desktopRequestsBadge"
+                        class="sidebar-badge {% if sidebar_new_requests_count %}sidebar-badge--new sidebar-badge--alert{% elif sidebar_in_progress_requests_count %}sidebar-badge--work{% endif %}"
+                        {% if not sidebar_new_requests_count and not sidebar_in_progress_requests_count %}hidden{% endif %}
+                    >
+                        {% if sidebar_new_requests_count %}
+                            {{ sidebar_new_requests_count }}
+                        {% elif sidebar_in_progress_requests_count %}
+                            {{ sidebar_in_progress_requests_count }}
+                        {% endif %}
+                    </span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-shortcuts">
+                    <a href="{% url 'operators:upload_pricelist' %}?mode=manual" class="sidebar-shortcut">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span class="sidebar-shortcut-label">Обновить цены</span>
+                    </a>
+                    <a href="{% url 'operators:telegram_requests' %}" class="sidebar-shortcut">
+                        <i class="bi bi-bell"></i>
+                        <span class="sidebar-shortcut-label">Открыть заявки</span>
+                    </a>
+                </div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-footnote" id="desktopSidebarFootnote">
+                    {% if sidebar_new_requests_count %}
+                    Новых обращений: <strong>{{ sidebar_new_requests_count }}</strong><br>
+                    {% endif %}
+                    {% if sidebar_in_progress_requests_count %}
+                    В работе: <strong>{{ sidebar_in_progress_requests_count }}</strong>
+                    {% else %}
+                    Все активные обращения обработаны.
+                    {% endif %}
+                </div>
+                <button type="button" class="sidebar-collapse-btn d-none d-lg-inline-flex" id="desktopSidebarToggle" aria-label="Свернуть меню">
+                    <i class="bi bi-layout-sidebar-inset"></i>
+                    <span class="sidebar-collapse-label">Свернуть меню</span>
+                </button>
+            </div>
+        </aside>
+
+        <div class="app-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn btn-outline-secondary sidebar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                </div>
+
+                <div class="topbar-user">
+                    {% if user.is_authenticated %}
+                    <span class="topbar-user-chip">
+                        <i class="bi bi-person-circle"></i> {{ user.username }}
+                    </span>
+                    <form method="post" action="{% url 'operators:logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary topbar-logout">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </header>
+
+            <div class="page-shell {% block page_shell_class %}{% endblock %}">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="page-heading">
+                    <h1>{% block page_title %}{% endblock %}</h1>
+                    <div class="page-heading-actions">{% block page_actions %}{% endblock %}</div>
+                </div>
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="mobileSidebarLabel">Магазин телефонов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <nav class="sidebar-nav">
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'operators:dashboard' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="sidebar-link-label">Дашборд</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'manual_price_editor' or request.resolver_match.url_name == 'upload_pricelist' and request.GET.mode == 'manual' %}active{% endif %}" href="{% url 'operators:upload_pricelist' %}?mode=manual">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                        <span class="sidebar-link-label">Загрузка прайс-листов</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'comparison_table' %}active{% endif %}" href="{% url 'operators:comparison_table' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-table"></i>
+                        <span class="sidebar-link-label">Таблица сравнения</span>
+                    </span>
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'telegram_price_builder' %}active{% endif %}" href="{% url 'operators:telegram_price_builder' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-telegram"></i>
+                        <span class="sidebar-link-label">Прайс для Telegram</span>
+                    </span>
+                </a>
+                <a id="mobileRequestsLink" class="sidebar-link {% if request.resolver_match.url_name == 'telegram_requests' %}active{% endif %}" href="{% url 'operators:telegram_requests' %}">
+                    <span class="sidebar-link-main">
+                        <i class="bi bi-chat-dots"></i>
+                        <span class="sidebar-link-label">Заявки Telegram</span>
+                    </span>
+                    <span
+                        id="mobileRequestsBadge"
+                        class="sidebar-badge {% if sidebar_new_requests_count %}sidebar-badge--new sidebar-badge--alert{% elif sidebar_in_progress_requests_count %}sidebar-badge--work{% endif %}"
+                        {% if not sidebar_new_requests_count and not sidebar_in_progress_requests_count %}hidden{% endif %}
+                    >
+                        {% if sidebar_new_requests_count %}
+                            {{ sidebar_new_requests_count }}
+                        {% elif sidebar_in_progress_requests_count %}
+                            {{ sidebar_in_progress_requests_count }}
+                        {% endif %}
+                    </span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="live-toast-stack" id="liveToastStack"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            const shell = document.querySelector('.app-shell');
+            const toggle = document.getElementById('desktopSidebarToggle');
+            const storageKey = 'operators-sidebar-collapsed';
+            const autoCollapse = document.body.dataset.autoCollapseSidebar === 'true';
+
+            if (!shell || !toggle) {
+                return;
+            }
+
+            const saved = localStorage.getItem(storageKey);
+            const shouldCollapse = saved === null ? autoCollapse : saved === 'true';
+
+            if (shouldCollapse) {
+                shell.classList.add('sidebar-collapsed');
+            }
+
+            toggle.addEventListener('click', function () {
+                const isCollapsed = shell.classList.toggle('sidebar-collapsed');
+                localStorage.setItem(storageKey, isCollapsed ? 'true' : 'false');
+            });
+        })();
+
+        (function () {
+            const endpoint = "{% url 'operators:sidebar_counts_api' %}";
+            const desktopBadge = document.getElementById('desktopRequestsBadge');
+            const mobileBadge = document.getElementById('mobileRequestsBadge');
+            const desktopLink = document.getElementById('desktopRequestsLink');
+            const mobileLink = document.getElementById('mobileRequestsLink');
+            const desktopFootnote = document.getElementById('desktopSidebarFootnote');
+            const toastStack = document.getElementById('liveToastStack');
+            const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+            const baseTitle = document.title;
+            const unreadStorageKey = 'operators-last-unread-message-id';
+            const systemEventStorageKey = 'operators-last-system-event-key';
+            let previousNewCount = 0;
+            let previousUnreadMessageId = sessionStorage.getItem(unreadStorageKey) || null;
+            let previousSystemEventKey = sessionStorage.getItem(systemEventStorageKey) || '';
+
+            if (!isAuthenticated || (!desktopBadge && !mobileBadge && !desktopFootnote && !desktopLink && !mobileLink)) {
+                return;
+            }
+
+            function detectInitialNewCount() {
+                const source = desktopBadge && !desktopBadge.hidden ? desktopBadge : mobileBadge;
+                if (!source) {
+                    return 0;
+                }
+                const value = parseInt(source.textContent || '0', 10);
+                return Number.isFinite(value) ? value : 0;
+            }
+
+            previousNewCount = detectInitialNewCount();
+
+            function renderBadge(node, newCount, inProgressCount) {
+                if (!node) {
+                    return;
+                }
+
+                const hasNew = newCount > 0;
+                const hasInProgress = inProgressCount > 0;
+
+                node.hidden = !(hasNew || hasInProgress);
+                node.className = 'sidebar-badge';
+
+                if (hasNew) {
+                    node.classList.add('sidebar-badge--new', 'sidebar-badge--alert');
+                    node.textContent = String(newCount);
+                    return;
+                }
+
+                if (hasInProgress) {
+                    node.classList.add('sidebar-badge--work');
+                    node.textContent = String(inProgressCount);
+                    return;
+                }
+
+                node.textContent = '';
+            }
+
+            function renderFootnote(node, newCount, inProgressCount) {
+                if (!node) {
+                    return;
+                }
+
+                if (newCount > 0) {
+                    node.innerHTML = `Новых обращений: <strong>${newCount}</strong><br>${inProgressCount > 0 ? `В работе: <strong>${inProgressCount}</strong>` : 'Все активные обращения обработаны.'}`;
+                    return;
+                }
+
+                if (inProgressCount > 0) {
+                    node.innerHTML = `В работе: <strong>${inProgressCount}</strong>`;
+                    return;
+                }
+
+                node.textContent = 'Все активные обращения обработаны.';
+            }
+
+            function renderLinkState(node, newCount) {
+                if (!node) {
+                    return;
+                }
+
+                if (newCount > 0) {
+                    node.classList.add('sidebar-link--alert');
+                } else {
+                    node.classList.remove('sidebar-link--alert');
+                }
+            }
+
+            function updateDocumentTitle(newCount) {
+                document.title = newCount > 0 ? `(${newCount}) ${baseTitle}` : baseTitle;
+            }
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function showLiveToast(options = {}) {
+                if (!toastStack) {
+                    return;
+                }
+
+                const variant = options.variant || 'message';
+                const requestId = options.requestId || null;
+                const eyebrow = options.eyebrow || 'Уведомление';
+                const title = options.title || 'Новое событие';
+                const text = options.text || '';
+                const iconClass = options.iconClass || 'bi bi-bell-fill';
+
+                const toast = document.createElement('div');
+                toast.className = `live-toast live-toast--${variant}`;
+                toast.innerHTML = `
+                    <div class="live-toast__icon"><i class="${escapeHtml(iconClass)}"></i></div>
+                    <div>
+                        <div class="live-toast__eyebrow">${escapeHtml(eyebrow)}</div>
+                        <div class="live-toast__title">${escapeHtml(title)}</div>
+                        <div class="live-toast__text">${escapeHtml(text || 'В Telegram поступило новое сообщение.')}</div>
+                        ${requestId ? `<div class="live-toast__text" style="margin-top:0.35rem;"><a href="/operators/telegram-requests/" style="color:#93c5fd;text-decoration:none;">Открыть заявку #${Number(requestId)}</a></div>` : ''}
+                    </div>
+                    <button type="button" class="live-toast__close" aria-label="Закрыть">&times;</button>
+                `;
+
+                const closeButton = toast.querySelector('.live-toast__close');
+                const removeToast = () => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                };
+
+                closeButton.addEventListener('click', removeToast);
+                toastStack.appendChild(toast);
+                setTimeout(removeToast, 5000);
+            }
+
+            window.showOperatorToast = showLiveToast;
+
+            async function refreshSidebarCounts() {
+                if (document.hidden) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${endpoint}?t=${Date.now()}`, {
+                        cache: 'no-store',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const newCount = Number(data.new_requests_count || 0);
+                    const inProgressCount = Number(data.in_progress_requests_count || 0);
+                    const latestUnreadMessageId = Number(data.latest_unread_message_id || 0) || null;
+                    const latestUnreadCustomerLabel = data.latest_unread_customer_label || '';
+                    const latestUnreadMessagePreview = data.latest_unread_message_preview || '';
+                    const latestUnreadRequestId = Number(data.latest_unread_request_id || 0) || null;
+                    const latestUnreadEventType = data.latest_unread_event_type || 'new_message';
+                    const latestSystemEventKey = data.latest_system_event_key || '';
+                    const latestSystemEventType = data.latest_system_event_type || '';
+                    const latestSystemEventTitle = data.latest_system_event_title || '';
+                    const latestSystemEventText = data.latest_system_event_text || '';
+                    const latestSystemEventRequestId = Number(data.latest_system_event_request_id || 0) || null;
+
+                    renderBadge(desktopBadge, newCount, inProgressCount);
+                    renderBadge(mobileBadge, newCount, inProgressCount);
+                    renderFootnote(desktopFootnote, newCount, inProgressCount);
+                    renderLinkState(desktopLink, newCount);
+                    renderLinkState(mobileLink, newCount);
+                    updateDocumentTitle(newCount);
+
+                    if (latestUnreadMessageId && latestUnreadMessageId !== previousUnreadMessageId) {
+                        showLiveToast({
+                            variant: latestUnreadEventType === 'new_request' ? 'new-request' : 'message',
+                            eyebrow: latestUnreadEventType === 'new_request' ? 'Новая заявка' : 'Новое сообщение',
+                            title: latestUnreadCustomerLabel
+                                ? (
+                                    latestUnreadEventType === 'new_request'
+                                        ? `${latestUnreadCustomerLabel} создал новую заявку`
+                                        : `${latestUnreadCustomerLabel} написал в Telegram`
+                                )
+                                : (
+                                    latestUnreadEventType === 'new_request'
+                                        ? 'В Telegram появилась новая заявка'
+                                        : 'Новое сообщение в Telegram'
+                                ),
+                            text: latestUnreadMessagePreview || 'Откройте заявку, чтобы ответить клиенту.',
+                            requestId: latestUnreadRequestId,
+                            iconClass: latestUnreadEventType === 'new_request' ? 'bi bi-megaphone-fill' : 'bi bi-chat-dots-fill',
+                        });
+                    }
+
+                    if (
+                        latestSystemEventKey
+                        && latestSystemEventKey !== previousSystemEventKey
+                        && !window.disableGlobalSystemToasts
+                    ) {
+                        showLiveToast({
+                            variant: latestSystemEventType === 'request_closed' ? 'closed' : 'message',
+                            eyebrow: latestSystemEventType === 'request_closed' ? 'Заявка закрыта' : 'Системное событие',
+                            title: latestSystemEventTitle || 'Новая системная активность',
+                            text: latestSystemEventText || '',
+                            requestId: latestSystemEventRequestId,
+                            iconClass: latestSystemEventType === 'request_closed' ? 'bi bi-x-circle-fill' : 'bi bi-bell-fill',
+                        });
+                    }
+
+                    previousNewCount = newCount;
+                    previousUnreadMessageId = latestUnreadMessageId;
+                    previousSystemEventKey = latestSystemEventKey;
+                    sessionStorage.setItem(unreadStorageKey, previousUnreadMessageId ? String(previousUnreadMessageId) : '');
+                    sessionStorage.setItem(systemEventStorageKey, previousSystemEventKey || '');
+                } catch (error) {
+                    // keep silent, next poll will retry
+                }
+            }
+
+            refreshSidebarCounts();
+            setInterval(refreshSidebarCounts, 4000);
+        })();
+    </script>
+</body>
+</html>

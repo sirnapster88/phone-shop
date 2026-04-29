@@ -1,0 +1,327 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block auth_title %}Вход в систему{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --bg-main: #f4f6fb;
+            --text-main: #18212f;
+            --text-muted: #6b7280;
+            --line-soft: #e6eaf2;
+            --brand: #1d4ed8;
+            --brand-dark: #173ea6;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 28%),
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 24%),
+                var(--bg-main);
+            color: var(--text-main);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .auth-topbar {
+            background: linear-gradient(135deg, #172033 0%, #24304a 100%);
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .auth-topbar .inner {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .auth-brand-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .auth-brand {
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .auth-topbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .auth-topbar-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.08);
+            transition: 0.18s ease;
+        }
+
+        .auth-topbar-link:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .auth-shell {
+            min-height: calc(100vh - 76px);
+            display: grid;
+            place-items: center;
+            padding: 32px 20px;
+        }
+
+        .auth-layout {
+            width: 100%;
+            max-width: 1180px;
+            display: grid;
+            grid-template-columns: minmax(320px, 460px) minmax(320px, 420px);
+            justify-content: center;
+            gap: 1.5rem;
+            align-items: stretch;
+        }
+
+        .auth-card,
+        .auth-sidecard {
+            border-radius: 28px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e6eaf2;
+            box-shadow: 0 24px 60px rgba(24, 33, 47, 0.14);
+        }
+
+        .auth-head {
+            padding: 2rem 2rem 1.5rem;
+            background:
+                radial-gradient(circle at top right, rgba(29, 78, 216, 0.12), transparent 35%),
+                linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+            border-bottom: 1px solid #e6eaf2;
+        }
+
+        .auth-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.45rem 0.8rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            background: rgba(29, 78, 216, 0.08);
+            color: #1d4ed8;
+            margin-bottom: 1rem;
+        }
+
+        .auth-title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0 0 0.45rem;
+            color: #18212f;
+        }
+
+        .auth-subtitle {
+            margin: 0;
+            color: #6b7280;
+            font-size: 1.02rem;
+        }
+
+        .auth-body {
+            padding: 2rem;
+        }
+
+        .auth-error {
+            border: 0;
+            border-radius: 14px;
+            background: #fdeaea;
+            color: #9b1c1c;
+            padding: 0.9rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .auth-form-row {
+            margin-bottom: 1.2rem;
+        }
+
+        .auth-form-row label {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-weight: 700;
+            color: #324055;
+        }
+
+        .auth-form-row input {
+            width: 100%;
+            min-height: 48px;
+            border-radius: 12px;
+            border: 1px solid #d8deea;
+            padding: 10px 14px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .auth-form-row input:focus {
+            border-color: #8eb4ff;
+            box-shadow: 0 0 0 0.2rem rgba(29, 78, 216, 0.12);
+            outline: none;
+        }
+
+        .auth-submit {
+            width: 100%;
+            min-height: 52px;
+            border: 0;
+            border-radius: 14px;
+            background: #1d4ed8;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1rem;
+            transition: 0.2s ease;
+        }
+
+        .auth-submit:hover {
+            background: #173ea6;
+        }
+
+        .auth-note {
+            margin-top: 1.1rem;
+            padding: 0.9rem 1rem;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+            border: 1px solid #dbe6fb;
+            color: #51607a;
+            font-size: 0.94rem;
+        }
+
+        .auth-note strong {
+            color: #18212f;
+        }
+
+        .auth-sidecard {
+            padding: 1.6rem;
+            display: grid;
+            gap: 1rem;
+            background:
+                radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 36%),
+                linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .auth-sidecard-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+
+        .auth-feature {
+            padding: 1rem 1.05rem;
+            border-radius: 18px;
+            border: 1px solid #dbe6fb;
+            background: rgba(255, 255, 255, 0.78);
+        }
+
+        .auth-feature-title {
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+
+        .auth-feature-text {
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 991.98px) {
+            .auth-topbar .inner {
+                padding: 16px 18px;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .auth-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-sidecard {
+                order: 2;
+            }
+        }
+    </style>
+    {% block auth_extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="auth-topbar">
+        <div class="inner">
+            <div class="auth-brand-wrap">
+                <i class="bi bi-phone" style="font-size: 1.65rem;"></i>
+                <a href="{% url 'operators:dashboard' %}" class="auth-brand">Магазин телефонов</a>
+            </div>
+
+            <div class="auth-topbar-actions">
+                {% block auth_topbar_actions %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-shell">
+        <div class="auth-layout">
+            <div class="auth-card">
+                <div class="auth-head">
+                    <div class="auth-kicker">
+                        <i class="bi {% block auth_kicker_icon %}bi-shield-lock{% endblock %}"></i>
+                        {% block auth_kicker %}Панель управления{% endblock %}
+                    </div>
+                    <h1 class="auth-title">{% block auth_heading %}Вход в систему{% endblock %}</h1>
+                    <p class="auth-subtitle">{% block auth_subtitle %}Авторизация для операторов и администратора{% endblock %}</p>
+                </div>
+
+                <div class="auth-body">
+                    {% block auth_content %}{% endblock %}
+                </div>
+            </div>
+
+            <aside class="auth-sidecard">
+                <div>
+                    <div class="auth-kicker mb-3">
+                        <i class="bi bi-grid-1x2"></i>
+                        Единый интерфейс
+                    </div>
+                    <h2 class="auth-sidecard-title">{% block auth_side_title %}Рабочая система оператора{% endblock %}</h2>
+                </div>
+
+                {% block auth_side_content %}
+                <div class="auth-feature">
+                    <div class="auth-feature-title">Загрузка и ручной ввод</div>
+                    <p class="auth-feature-text">Импортируйте файлы или обновляйте цены вручную в одном модуле.</p>
+                </div>
+                <div class="auth-feature">
+                    <div class="auth-feature-title">Сравнение закупок</div>
+                    <p class="auth-feature-text">Смотрите лучшую закупочную цену и быстро переходите к нужной позиции.</p>
+                </div>
+                <div class="auth-feature">
+                    <div class="auth-feature-title">Telegram-публикация</div>
+                    <p class="auth-feature-text">Формируйте прайс, обновляйте активный пост и отправляйте отдельные сообщения.</p>
+                </div>
+                {% endblock %}
+            </aside>
+        </div>
+    </div>
+</body>
+</html>

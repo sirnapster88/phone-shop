@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.py[cod]
+db.sqlite3
+media/
+staticfiles/
+*.log
+.DS_Store
+venv/
+*.xlsx
+parser_check.txt

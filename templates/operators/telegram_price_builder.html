@@ -1,0 +1,1325 @@
+{% extends 'base.html' %}
+
+{% block title %}Прайс для Telegram{% endblock %}
+{% block page_title %}Подготовка прайса для Telegram{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'operators:dashboard' %}" class="btn ops-btn ops-btn-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .builder-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+        gap: 1.25rem;
+        align-items: stretch;
+    }
+
+    .builder-hero-main,
+    .builder-hero-side {
+        padding: 1.7rem;
+    }
+
+    .builder-hero-side {
+        border-left: 1px solid #e5ecfb;
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .builder-hero-meta {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .builder-hero-note {
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .builder-action-btn {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .builder-action-btn-primary {
+        min-height: 72px;
+        box-shadow: 0 14px 30px rgba(29, 78, 216, 0.18);
+    }
+
+    .builder-action-btn-secondary {
+        min-height: 72px;
+        background: #f8fbff;
+        border-color: #d8e4ff;
+        color: #1d4ed8;
+    }
+
+    .builder-action-btn-secondary:hover {
+        background: #eef4ff;
+        border-color: #bfd4ff;
+        color: #1d4ed8;
+    }
+
+    .builder-action-btn-secondary:focus,
+    .builder-action-btn-secondary:active,
+    .builder-action-btn-secondary.show {
+        background: #eef4ff;
+        border-color: #bfd4ff;
+        color: #1d4ed8;
+    }
+
+    .builder-card {
+        display: grid;
+        grid-template-columns: 56px minmax(220px, 1.8fr) minmax(180px, 1fr) 120px 180px;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 1.1rem;
+        border: 1px solid #e6eaf2;
+        border-radius: 18px;
+        background: #fff;
+    }
+
+    .builder-card-check {
+        display: flex;
+        justify-content: center;
+    }
+
+    .builder-product-name {
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+
+    .builder-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #7a8597;
+        margin-bottom: 0.35rem;
+    }
+
+    .builder-price {
+        font-weight: 800;
+        font-size: 1.05rem;
+        white-space: nowrap;
+    }
+
+    .builder-supplier {
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .builder-source-note {
+        margin-top: 0.55rem;
+        font-size: 0.85rem;
+        line-height: 1.35;
+        color: #667085;
+    }
+
+    .builder-card-final .form-control {
+        min-height: 42px;
+    }
+
+    .builder-output-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    .builder-output-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .builder-side-card {
+        border: 1px solid var(--line-soft);
+        border-radius: 22px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        overflow: hidden;
+    }
+
+    .builder-side-card .card-header,
+    .builder-side-card .card-body {
+        background: transparent;
+    }
+
+    .builder-publish-actions {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .builder-help-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .builder-help-item {
+        padding: 0.9rem 1rem;
+        border-radius: 16px;
+        background: #f8fbff;
+        border: 1px solid #dbe6fb;
+    }
+
+    .builder-filters-card {
+        overflow: hidden;
+        transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .builder-filters-card.collapsing {
+        transition: height 0.3s ease;
+    }
+
+    .builder-filters-card .card-body {
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .builder-filters-card.collapse:not(.show) .card-body {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    .builder-filters-card.collapse.show .card-body {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .telegram-preview {
+        min-height: 420px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .manual-message-preview {
+        min-height: 420px;
+        white-space: pre-wrap;
+    }
+
+    @media (max-width: 991.98px) {
+        .builder-hero-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .builder-output-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .builder-hero-side {
+            border-left: 0;
+            border-top: 1px solid #e5ecfb;
+        }
+
+        .builder-card {
+            grid-template-columns: 44px 1fr;
+        }
+
+        .builder-card-supplier,
+        .builder-card-base,
+        .builder-card-final {
+            grid-column: 2;
+        }
+    }
+</style>
+
+<div class="card page-hero-card mb-4">
+    <div class="builder-hero-grid">
+        <div class="builder-hero-main">
+            <span class="page-hero-kicker"><i class="bi bi-telegram"></i> Telegram publication flow</span>
+            <h2 class="page-hero-title">Подготовка текста, ручных сообщений и актуального прайса</h2>
+            <p class="section-note mb-0">
+                Здесь мы собираем финальный Telegram-прайс из витринных цен и закупок, редактируем черновик, публикуем его
+                в канал и при необходимости отправляем отдельные анонсы или акции.
+            </p>
+
+            <div class="page-hero-actions">
+                <a href="#telegramOutputCard" class="btn btn-outline-primary" onclick="generateTelegramText()">
+                    <i class="bi bi-magic"></i> Сгенерировать и перейти к тексту
+                </a>
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#builderFilters"
+                        aria-expanded="{% if filters.category or filters.brand or filters.supplier or filters.q %}true{% else %}false{% endif %}"
+                        aria-controls="builderFilters">
+                    <i class="bi bi-funnel"></i> Фильтры позиций
+                </button>
+            </div>
+        </div>
+
+        <div class="builder-hero-side">
+            <div class="builder-hero-meta">
+                <div class="builder-hero-note">
+                    <div class="fw-semibold mb-1">Логика расчета</div>
+                    <div class="section-note">Приоритет у ручной цены оператора. Если ее нет, берем минимальную закупку.</div>
+                </div>
+                <div class="builder-hero-note">
+                    <div class="fw-semibold mb-1">Наценка применяется выборочно</div>
+                    <div class="section-note">Позиции с ручной ценой не перетираются. Остальные округляются вверх до ближайших 500.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card section-card mb-4 surface-subtle">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Параметры прайса</h5>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-xl-3 col-md-6">
+                <label class="form-label fw-bold">Наценка, %</label>
+                <input type="number" id="markupPercent" class="form-control" value="3" step="0.1" min="0">
+            </div>
+
+            <div class="col-xl-3 col-md-6 d-grid">
+                <button type="button" class="btn btn-outline-primary builder-action-btn builder-action-btn-secondary" onclick="applyMarkup()">
+                    <i class="bi bi-percent me-2"></i> Применить наценку
+                </button>
+            </div>
+
+            <div class="col-xl-3 col-md-6 d-grid">
+                <button type="button" class="btn btn-primary builder-action-btn builder-action-btn-primary" onclick="generateTelegramText()">
+                    <i class="bi bi-magic me-2"></i> Сгенерировать прайс
+                </button>
+            </div>
+
+            <div class="col-xl-3 col-md-6 d-grid">
+                <button type="button"
+                        class="btn btn-outline-secondary builder-action-btn builder-action-btn-secondary"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#builderFilters"
+                        aria-expanded="{% if filters.category or filters.brand or filters.supplier or filters.q %}true{% else %}false{% endif %}"
+                        aria-controls="builderFilters">
+                    <i class="bi bi-funnel me-2"></i> Фильтры
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-3 section-note">
+            Базой служит минимальная цена. После наценки цена округляется вверх до ближайших 500.
+        </div>
+    </div>
+</div>
+
+<div class="card section-card mb-4 collapse builder-filters-card {% if filters.category or filters.brand or filters.supplier or filters.q %}show{% endif %}" id="builderFilters">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Фильтры для позиций</h5>
+    </div>
+    <div class="card-body p-4">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Категория</label>
+                    <select name="category" class="form-select">
+                        <option value="">Все категории</option>
+                        {% for category in filter_options.categories %}
+                            <option value="{{ category }}" {% if filters.category == category %}selected{% endif %}>
+                                {{ category }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Бренд</label>
+                    <select name="brand" class="form-select">
+                        <option value="">Все бренды</option>
+                        {% for brand in filter_options.brands %}
+                            <option value="{{ brand }}" {% if filters.brand == brand %}selected{% endif %}>
+                                {{ brand }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Поставщик</label>
+                    <select name="supplier" class="form-select">
+                        <option value="">Все поставщики</option>
+                        {% for supplier_id, supplier_name in filter_options.suppliers %}
+                            <option value="{{ supplier_id }}" {% if filters.supplier == supplier_id|stringformat:"s" %}selected{% endif %}>
+                                {{ supplier_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Поиск</label>
+                    <input type="text"
+                           name="q"
+                           class="form-control"
+                           value="{{ filters.q }}"
+                           placeholder="Модель, цвет, память...">
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+                <a href="{% url 'operators:telegram_price_builder' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Сбросить
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel"></i> Применить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div class="card section-card mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Позиции для прайса</h5>
+        <span class="section-note">{{ items|length }} доступных позиций</span>
+    </div>
+        <div class="card-body p-4">
+        <div class="row g-3">
+            {% for item in items %}
+            <div class="col-12">
+                
+                <div class="builder-card builder-row" data-has-manual-price="{% if item.has_manual_price %}1{% else %}0{% endif %}">
+                    <div class="builder-card-check">
+                        <input class="form-check-input row-enabled" type="checkbox" checked>
+                    </div>
+
+                    <div class="builder-card-main">
+                        <div class="builder-product-name row-model">
+                            {% if item.brand and item.brand|lower not in item.model|lower %}
+                                {{ item.brand }} {{ item.model }}
+                            {% else %}
+                                {{ item.model }}
+                            {% endif %}
+                        </div>
+                        <span class="d-none row-brand">{{ item.brand }}</span>
+                        <span class="d-none row-category">{{ item.category }}</span>
+                        <span class="d-none row-model-raw">{{ item.model }}</span>
+                        <span class="d-none row-memory-raw">{{ item.memory }}</span>
+                        <span class="d-none row-color-raw">{{ item.color }}</span>
+                        <span class="d-none row-region-raw">{{ item.region }}</span>
+                        <span class="d-none row-sim-raw">{{ item.sim_type }}</span>
+                        <span class="d-none row-specs-raw">{{ item.specs }}</span>
+
+                        <div class="builder-meta d-flex flex-wrap gap-1 mt-2">
+                            {% if item.color %}
+                                <span class="badge rounded-pill text-bg-secondary row-color">{{ item.color }}</span>
+                            {% else %}
+                                <span class="d-none row-color"></span>
+                            {% endif %}
+
+                            {% if item.specs and '/' in item.specs %}
+                                <span class="badge rounded-pill text-bg-primary row-memory">{{ item.specs }}</span>
+                            {% elif item.memory %}
+                                <span class="badge rounded-pill text-bg-primary row-memory">{{ item.memory }}gb</span>
+                            {% else %}
+                                <span class="d-none row-memory"></span>
+                            {% endif %}
+
+                            {% if item.region %}
+                                <span class="badge rounded-pill bg-warning text-dark row-region">{{ item.region }}</span>
+                            {% else %}
+                                <span class="d-none row-region"></span>
+                            {% endif %}
+
+                            {% if item.sim_type %}
+                                <span class="badge rounded-pill text-bg-dark row-sim">{{ item.sim_type }}</span>
+                            {% else %}
+                                <span class="d-none row-sim"></span>
+                            {% endif %}
+
+                            {% if item.specs and '/' not in item.specs %}
+                                <span class="badge rounded-pill bg-info text-dark row-specs">{{ item.specs }}</span>
+                            {% else %}
+                                <span class="d-none row-specs"></span>
+                            {% endif %}
+                        </div>
+
+
+                    </div>
+
+                    <div class="builder-card-supplier">
+                        <div class="builder-label">Поставщик</div>
+                        <span class="badge rounded-pill bg-light text-dark border builder-supplier row-supplier">
+                            {{ item.supplier_name }}
+                        </span>
+                        {% if item.has_manual_price %}
+                        <div class="mt-2">
+                            <span class="badge rounded-pill bg-success">Ручная цена</span>
+                        </div>
+                        {% if item.manual_source_supplier_name %}
+                        <div class="builder-source-note">
+                            Источник: {{ item.manual_source_supplier_name }}
+                        </div>
+                        {% endif %}
+                        {% if item.manual_source_note %}
+                        <div class="builder-source-note">
+                            Комментарий: {{ item.manual_source_note }}
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <div class="builder-card-base">
+                        <div class="builder-label">{% if item.has_manual_price %}Цена оператора{% else %}База{% endif %}</div>
+                        <div class="builder-price row-base-price" data-value="{{ item.base_price }}">
+                            {{ item.base_price }}
+                        </div>
+                    </div>
+
+                    <div class="builder-card-final">
+                        <label class="builder-label">Итог</label>
+                        <input type="number" class="form-control row-final-price" value="{{ item.base_price }}">
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5 text-muted">
+                Нет данных для подготовки прайса
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if items %}
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-4 pt-3 border-top">
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn ops-btn ops-btn-secondary" onclick="toggleAllRows(true)">
+                    <i class="bi bi-check2-square"></i> Выбрать все
+                </button>
+                <button type="button" class="btn ops-btn ops-btn-secondary" onclick="toggleAllRows(false)">
+                    <i class="bi bi-square"></i> Снять выбор
+                </button>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn ops-btn ops-btn-primary" onclick="generateTelegramText()">
+                    <i class="bi bi-magic"></i> Сгенерировать прайс
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+
+<div class="builder-output-grid" id="telegramOutputCard">
+    <div class="card section-card">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h5 class="card-title mb-1 text-primary">
+                    <i class="bi bi-telegram"></i> Готовый текст для Telegram
+                </h5>
+                <div class="section-note">Черновик сохраняется в рамках текущего дня и обновляется после каждой генерации.</div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn ops-btn ops-btn-secondary ops-btn-sm" onclick="clearTelegramText()">
+                    <i class="bi bi-x-circle"></i> Очистить
+                </button>
+                <button type="button" class="btn ops-btn ops-btn-primary ops-btn-sm" onclick="copyTelegramText()">
+                    <i class="bi bi-clipboard"></i> Скопировать
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if latest_price_publication %}
+            <div class="alert alert-info mb-3">
+                Активный прайс в Telegram был опубликован {{ latest_price_publication.created_at|date:"d.m.Y H:i" }}.
+                При новой отправке старый прайс будет удален автоматически.
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'operators:send_telegram_pricelist' %}" id="telegramSendForm">
+                {% csrf_token %}
+            </form>
+
+            <textarea id="telegramOutput"
+                    name="telegram_text"
+                    form="telegramSendForm"
+                    class="form-control telegram-preview"
+                    rows="18"
+                    placeholder="Нажмите «Сгенерировать текст»"></textarea>
+
+            <div id="telegramDraftStatus" class="form-text mt-2 text-muted">
+                Черновик за сегодня будет сохранен автоматически после генерации.
+            </div>
+        </div>
+    </div>
+
+    <div class="builder-output-stack">
+        <div class="card builder-side-card section-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Публикация прайса</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="builder-publish-actions">
+                    <button type="submit" form="telegramSendForm" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Отправить в Telegram
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="generateTelegramText()">
+                        <i class="bi bi-arrow-repeat"></i> Перегенерировать текст
+                    </button>
+                </div>
+
+                <div class="builder-help-list mt-4">
+                    <div class="builder-help-item">
+                        <div class="fw-semibold mb-1">Перед отправкой</div>
+                        <div class="section-note">Проверь итоговые цены и при необходимости поправь текст вручную прямо в окне слева.</div>
+                    </div>
+                    <div class="builder-help-item">
+                        <div class="fw-semibold mb-1">После публикации</div>
+                        <div class="section-note">Система удалит предыдущий прайс и зафиксирует новую публикацию как активную.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card builder-side-card section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-megaphone"></i> Отдельное сообщение
+                </h5>
+                {% if latest_manual_publication %}
+                <span class="section-note">Последняя отправка: {{ latest_manual_publication.created_at|date:"d.m.Y H:i" }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <form method="post" action="{% url 'operators:send_telegram_manual_message' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="manualTelegramText" class="form-label fw-bold">Текст сообщения</label>
+                        <textarea id="manualTelegramText"
+                                name="manual_telegram_text"
+                                class="form-control manual-message-preview"
+                                rows="8"
+                                placeholder="Например:&#10;Акция на выходные&#10;Скидка на выбранные модели до 5 000 ₽"></textarea>
+                        <div class="form-text">Подходит для акций, объявлений и любых отдельных сообщений. Старый прайс это не затрагивает.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="manualTelegramPhoto" class="form-label fw-bold">Фото</label>
+                        <input id="manualTelegramPhoto"
+                            type="file"
+                            name="manual_telegram_photo"
+                            class="form-control"
+                            accept="image/*">
+                        <div class="form-text">Необязательно. Если загрузить фото, текст отправится как подпись к нему или отдельным сообщением, если он слишком длинный.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Отправить сообщение
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+function roundUpTo500(value) {
+    return Math.ceil(value / 500) * 500;
+}
+
+function applyMarkup() {
+    const markup = parseFloat(document.getElementById('markupPercent').value || '0');
+
+    document.querySelectorAll('.builder-row').forEach(row => {
+        if (row.dataset.hasManualPrice === '1') {
+            return;
+        }
+
+        const baseEl = row.querySelector('.row-base-price');
+        const finalInput = row.querySelector('.row-final-price');
+
+        const basePrice = parseFloat(baseEl.dataset.value || '0');
+        const calculated = basePrice * (1 + markup / 100);
+        finalInput.value = roundUpTo500(calculated);
+    });
+}
+
+function toggleAllRows(checked) {
+    document.querySelectorAll('.row-enabled').forEach(el => {
+        el.checked = checked;
+    });
+}
+
+function regionToFlag(region) {
+    const map = {
+        'Japan': '🇯🇵',
+        'India': '🇮🇳',
+        'USA': '🇺🇸',
+        'China': '🇨🇳',
+        'Hong Kong': '🇭🇰',
+        'Europe': '🇪🇺',
+        'UAE': '🇦🇪',
+        'Kazakhstan': '🇰🇿'
+    };
+    return map[region] || '';
+}
+
+function normalizeStorageValue(value) {
+    if (!value) return 0;
+
+    const lower = String(value).trim().toLowerCase();
+
+    if (lower.endsWith('tb')) {
+        const tb = parseInt(lower, 10);
+        return Number.isNaN(tb) ? 0 : tb * 1024;
+    }
+
+    const digits = parseInt(lower.replace(/\D/g, ''), 10);
+    return Number.isNaN(digits) ? 0 : digits;
+}
+
+function getStorageLabel(item) {
+    if (item.category === 'phone' && item.specs && item.specs.includes('/')) {
+        return item.specs;
+    }
+    return item.memory || '';
+}
+
+function getStorageSortValue(item) {
+    if (item.category === 'phone' && item.specs && item.specs.includes('/')) {
+        const parts = item.specs.split('/');
+        return normalizeStorageValue(parts[1] || '');
+    }
+    return normalizeStorageValue(item.memory);
+}
+
+function getSimPriority(simType) {
+    const value = (simType || '').toLowerCase();
+
+    if (value === 'esim') return 0;
+    if (value === '1sim') return 1;
+    if (value === '2sim') return 2;
+    if (value === 'dsim') return 3;
+    return 4;
+}
+
+function isIPhone(item) {
+    return item.category === 'phone' && item.brand === 'iPhone';
+}
+
+function isAndroidPhone(item) {
+    return item.category === 'phone' && item.brand && item.brand !== 'iPhone';
+}
+
+function isBrokenPhoneItem(item) {
+    if (item.category !== 'phone') return false;
+
+    const storage = getStorageLabel(item);
+    return !storage && !item.color && !item.region && !item.simType && !item.specs;
+}
+
+function getIPhoneGroupTitle(model) {
+    const lower = (model || '').trim().toLowerCase();
+
+    if (lower.startsWith('13')) return '13';
+    if (lower.startsWith('14')) return '14';
+    if (lower.startsWith('15')) return '15';
+
+    if (lower.startsWith('16e')) return '16E';
+    if (lower.startsWith('16 plus')) return '16 Plus';
+    if (lower.startsWith('16 ') || lower === '16') return '16';
+
+    if (lower.startsWith('17 pro max')) return '17 Pro Max';
+    if (lower.startsWith('17 pro')) return '17 Pro';
+    if (lower.startsWith('17e') || lower.startsWith('17е')) return '17E';
+    if (lower.startsWith('17 ')) return '17';
+
+    if (lower.startsWith('air')) return 'Air';
+
+    return model;
+}
+
+function formatTelegramModel(value) {
+    return (value || '')
+        .replace(/\bplus\b/gi, 'Plus')
+        .replace(/\bpro\s+max\b/gi, 'Pro Max')
+        .replace(/\bpro\b/gi, 'Pro')
+        .replace(/\bmax\b/gi, 'Max')
+        .replace(/\bmini\b/gi, 'mini')
+        .replace(/\bair\b/gi, 'Air')
+        .replace(/\bultra\b/gi, 'Ultra')
+        .replace(/\bse\b/gi, 'SE')
+        .replace(/\baw\b/gi, 'AW')
+        .replace(/\bm(\d)\b/gi, 'M$1')
+        .replace(/\be\b/g, 'e')
+        .trim();
+}
+
+function formatAccessorySpec(value) {
+    return (value || '')
+        .replace(/\busb-c\b/gi, 'USB-C')
+        .replace(/\banc\b/gi, 'ANC')
+        .trim();
+}
+
+function formatSectionTitle(emoji, title) {
+    return emoji ? `${emoji} ${title}` : title;
+}
+
+function pushBlankLine(output) {
+    if (!output.length || output[output.length - 1] === '') return;
+    output.push('');
+}
+
+function trimTrailingBlankLines(output) {
+    while (output.length && output[output.length - 1] === '') {
+        output.pop();
+    }
+}
+
+function getWatchBreakKey(item) {
+    const specs = (item.specs || '').trim();
+    const model = (item.model || '').trim();
+    const parts = [model];
+
+    if (specs) {
+        const firstSpec = specs.split(/\s+/)[0];
+        if (firstSpec) parts.push(firstSpec);
+    }
+
+    return parts.join(' | ');
+}
+
+function getTabletGroupTitle(item) {
+    const brand = (item.brand || '').trim();
+    const model = (item.model || '').trim();
+    if (brand && model && model.toLowerCase().startsWith(brand.toLowerCase())) {
+        return model;
+    }
+    return [brand, model].filter(Boolean).join(' ').trim();
+}
+
+function sortPhones(items) {
+    return [...items].sort((a, b) => {
+        const simDiff = getSimPriority(a.simType) - getSimPriority(b.simType);
+        if (simDiff !== 0) return simDiff;
+
+        const storageDiff = getStorageSortValue(a) - getStorageSortValue(b);
+        if (storageDiff !== 0) return storageDiff;
+
+        const colorA = (a.color || '').toLowerCase();
+        const colorB = (b.color || '').toLowerCase();
+        return colorA.localeCompare(colorB);
+    });
+}
+
+function sortByStorageThenColor(items) {
+    return [...items].sort((a, b) => {
+        const storageDiff = getStorageSortValue(a) - getStorageSortValue(b);
+        if (storageDiff !== 0) return storageDiff;
+
+        const colorA = (a.color || '').toLowerCase();
+        const colorB = (b.color || '').toLowerCase();
+        return colorA.localeCompare(colorB);
+    });
+}
+
+function sortWatchItems(items) {
+    return [...items].sort((a, b) => {
+        const keyA = getWatchBreakKey(a).toLowerCase();
+        const keyB = getWatchBreakKey(b).toLowerCase();
+        if (keyA !== keyB) return keyA.localeCompare(keyB);
+
+        const colorA = (a.color || '').toLowerCase();
+        const colorB = (b.color || '').toLowerCase();
+        return colorA.localeCompare(colorB);
+    });
+}
+
+function buildDysonLine(item) {
+    const parts = [];
+    if (item.model) parts.push(item.model);
+    if (item.color) parts.push(item.color);
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+    return parts.join(' ').trim();
+}
+
+function buildAirPodsLine(item) {
+    const parts = ['🎧'];
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+    if (item.specs && !item.model.toLowerCase().includes(item.specs.toLowerCase())) {
+        parts.push(formatAccessorySpec(item.specs));
+    }
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildWatchLine(item) {
+    const parts = ['⌚️'];
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+    if (item.specs) parts.push(item.specs.toLowerCase());
+    if (item.color) parts.push(item.color.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildPencilLine(item) {
+    const parts = ['🖊️'];
+
+    if (item.model) parts.push(formatTelegramModel(item.model.replace(/^Apple Pencil\s*/i, '').trim()));
+    if (item.specs && !item.model.toLowerCase().includes(item.specs.toLowerCase())) {
+        parts.push(formatAccessorySpec(item.specs));
+    }
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildTabletLine(item) {
+    const parts = [];
+    const model = (item.model || '').trim();
+    const modelContainsBrand = model.toLowerCase().startsWith('ipad');
+
+    if (item.brand === 'iPad' && !modelContainsBrand) {
+        parts.push('iPad');
+    }
+    if (model) parts.push(model);
+
+    const storage = getStorageLabel(item);
+    if (storage) parts.push(storage);
+
+    if (item.specs && !item.specs.includes('/')) {
+        parts.push(item.specs);
+    }
+
+    if (item.color) parts.push(item.color.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildMacMiniLine(item) {
+    const parts = ['🖥️', 'Mac Mini'];
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+    if (item.specs) parts.push(item.specs);
+    if (item.color) parts.push(item.color.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildLaptopLine(item) {
+    const parts = ['💻'];
+
+    if (item.brand === 'MacBook') {
+        parts.push('MacBook');
+    }
+    if (item.model) parts.push(formatTelegramModel(item.model));
+    if (item.specs) parts.push(item.specs);
+    if (item.color) parts.push(item.color.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildIPhoneLine(item) {
+    const parts = [];
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+
+    const storage = getStorageLabel(item);
+    if (storage) parts.push(storage);
+
+    if (item.color) parts.push(item.color.toLowerCase());
+
+    const flag = regionToFlag(item.region);
+    if (flag) parts.push(flag);
+
+    if (item.simType) parts.push(item.simType.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function buildAndroidLine(item) {
+    const parts = [];
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+
+    if (item.specs && item.specs.includes('/')) {
+        parts.push(item.specs);
+    } else if (item.memory) {
+        parts.push(item.memory);
+    }
+
+    if (item.color) parts.push(item.color.toLowerCase());
+
+    const flag = regionToFlag(item.region);
+    if (flag) parts.push(flag);
+
+    if (item.simType) parts.push(item.simType.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
+function pushPhoneItems(output, items, lineBuilder) {
+    let prevSim = null;
+    let prevStorage = null;
+
+    sortPhones(items).forEach((item, index) => {
+        const currentSim = (item.simType || '').toLowerCase();
+        const currentStorage = getStorageLabel(item);
+
+        if (index > 0 && currentSim !== prevSim) {
+            pushBlankLine(output);
+        } else if (index > 0 && currentStorage !== prevStorage) {
+            pushBlankLine(output);
+        }
+
+        output.push(lineBuilder(item));
+
+        prevSim = currentSim;
+        prevStorage = currentStorage;
+    });
+}
+
+function pushWatchItemsWithBreaks(output, items) {
+    let prevKey = null;
+
+    sortWatchItems(items).forEach((item, index) => {
+        const currentKey = getWatchBreakKey(item);
+
+        if (index > 0 && currentKey !== prevKey) {
+            pushBlankLine(output);
+        }
+
+        output.push(buildWatchLine(item));
+        prevKey = currentKey;
+    });
+}
+
+function pushTabletItemsWithBreaks(output, items) {
+    const groups = {};
+
+    items.forEach(item => {
+        const title = getTabletGroupTitle(item);
+        if (!groups[title]) {
+            groups[title] = [];
+        }
+        groups[title].push(item);
+    });
+
+    Object.keys(groups).sort().forEach((title, groupIndex, keys) => {
+        const groupItems = groups[title];
+        let prevStorage = null;
+
+        sortByStorageThenColor(groupItems).forEach((item, itemIndex) => {
+            const currentStorage = getStorageLabel(item);
+
+            if (itemIndex > 0 && currentStorage !== prevStorage) {
+                pushBlankLine(output);
+            }
+
+            output.push(buildTabletLine(item));
+            prevStorage = currentStorage;
+        });
+
+        if (groupIndex < keys.length - 1) {
+            pushBlankLine(output);
+        }
+    });
+}
+
+function getTodayDraftKey() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `telegram-price-draft:${window.location.pathname}:${year}-${month}-${day}`;
+}
+
+function saveTelegramDraft() {
+    const output = document.getElementById('telegramOutput');
+    if (!output) return;
+
+    const value = output.value || '';
+    localStorage.setItem(getTodayDraftKey(), value);
+    updateDraftStatus(Boolean(value.trim()));
+}
+
+function restoreTelegramDraft() {
+    const output = document.getElementById('telegramOutput');
+    if (!output) return;
+
+    const saved = localStorage.getItem(getTodayDraftKey());
+    if (saved) {
+        output.value = saved;
+        updateDraftStatus(Boolean(saved.trim()));
+    } else {
+        updateDraftStatus(false);
+    }
+}
+
+
+function updateDraftStatus(hasDraft) {
+    const status = document.getElementById('telegramDraftStatus');
+    if (!status) return;
+
+    if (hasDraft) {
+        status.textContent = 'Черновик за сегодня сохранен автоматически.';
+    } else {
+        status.textContent = 'Черновик за сегодня будет сохранен автоматически после генерации.';
+    }
+}
+
+
+function scrollToTelegramOutput() {
+    const target = document.getElementById('telegramOutputCard');
+    if (!target) return;
+
+    target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+}
+
+function getFormattedTelegramDate() {
+    return new Date().toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+}
+
+function generateTelegramText() {
+    const rows = document.querySelectorAll('.builder-row');
+    const items = [];
+
+    rows.forEach(row => {
+        const enabled = row.querySelector('.row-enabled');
+        if (!enabled || !enabled.checked) return;
+
+        const categoryEl = row.querySelector('.row-category');
+        const brandEl = row.querySelector('.row-brand');
+        const modelRawEl = row.querySelector('.row-model-raw');
+        const memoryRawEl = row.querySelector('.row-memory-raw');
+        const colorRawEl = row.querySelector('.row-color-raw');
+        const regionRawEl = row.querySelector('.row-region-raw');
+        const simRawEl = row.querySelector('.row-sim-raw');
+        const specsRawEl = row.querySelector('.row-specs-raw');
+        const finalPriceEl = row.querySelector('.row-final-price');
+
+        const item = {
+            category: categoryEl ? categoryEl.textContent.trim() : '',
+            brand: brandEl ? brandEl.textContent.trim() : '',
+            model: modelRawEl ? modelRawEl.textContent.trim() : '',
+            memory: memoryRawEl ? memoryRawEl.textContent.trim() : '',
+            color: colorRawEl ? colorRawEl.textContent.trim() : '',
+            region: regionRawEl ? regionRawEl.textContent.trim() : '',
+            simType: simRawEl ? simRawEl.textContent.trim() : '',
+            specs: specsRawEl ? specsRawEl.textContent.trim() : '',
+            finalPrice: finalPriceEl ? finalPriceEl.value.trim() : ''
+        };
+
+        if (!item.model || !item.finalPrice) return;
+        if (isBrokenPhoneItem(item)) return;
+
+        items.push(item);
+    });
+
+    const output = [
+        `Добрый день!`,
+        `Прайс на ${getFormattedTelegramDate()}`,
+        ''
+    ];
+
+    const dysonItems = items.filter(item => item.category === 'appliance');
+    if (dysonItems.length) {
+        output.push('Dyson');
+        dysonItems.forEach(item => output.push(buildDysonLine(item)));
+        pushBlankLine(output);
+    }
+
+    const airPodsItems = items.filter(
+        item => item.category === 'accessory' && item.brand === 'AirPods'
+    );
+    if (airPodsItems.length) {
+        airPodsItems.forEach(item => output.push(buildAirPodsLine(item)));
+        pushBlankLine(output);
+    }
+
+    const watchItems = items.filter(item => item.category === 'watch');
+    if (watchItems.length) {
+        output.push(formatSectionTitle('⌚️', 'Apple Watch'));
+        pushWatchItemsWithBreaks(output, watchItems);
+        pushBlankLine(output);
+    }
+
+    const pencilItems = items.filter(
+        item => item.category === 'accessory' && item.brand === 'Apple Pencil'
+    );
+    const tabletItems = items.filter(item => item.category === 'tablet');
+    if (pencilItems.length || tabletItems.length) {
+        output.push(formatSectionTitle('📋', 'iPad'));
+
+        pencilItems.forEach(item => output.push(buildPencilLine(item)));
+
+        if (pencilItems.length && tabletItems.length) {
+            pushBlankLine(output);
+        }
+
+        pushTabletItemsWithBreaks(output, tabletItems);
+        pushBlankLine(output);
+    }
+
+    const macMiniItems = items.filter(
+        item => item.category === 'laptop' && item.brand === 'Mac Mini'
+    );
+    if (macMiniItems.length) {
+        macMiniItems.forEach(item => output.push(buildMacMiniLine(item)));
+        pushBlankLine(output);
+    }
+
+    const laptopItems = items.filter(
+        item => item.category === 'laptop' && item.brand !== 'Mac Mini'
+    );
+    if (laptopItems.length) {
+        output.push(formatSectionTitle('💻', 'Ноутбуки с гравировкой'));
+        laptopItems.forEach(item => output.push(buildLaptopLine(item)));
+        pushBlankLine(output);
+    }
+
+    const iphoneItems = items.filter(isIPhone);
+    const iphoneGroups = {};
+
+    iphoneItems.forEach(item => {
+        const groupTitle = getIPhoneGroupTitle(item.model);
+        if (!iphoneGroups[groupTitle]) {
+            iphoneGroups[groupTitle] = [];
+        }
+        iphoneGroups[groupTitle].push(item);
+    });
+
+    const iphoneGroupOrder = [
+        '13',
+        '14',
+        '15',
+        '16E',
+        '16',
+        '16 Plus',
+        '17E',
+        '17',
+        'Air',
+        '17 Pro',
+        '17 Pro Max'
+    ];
+
+
+    iphoneGroupOrder.forEach(groupTitle => {
+        if (!iphoneGroups[groupTitle] || !iphoneGroups[groupTitle].length) return;
+
+        output.push(formatSectionTitle('📱', groupTitle));
+        pushPhoneItems(output, iphoneGroups[groupTitle], buildIPhoneLine);
+        pushBlankLine(output);
+    });
+
+    const androidItems = items.filter(isAndroidPhone);
+    if (androidItems.length) {
+        output.push(formatSectionTitle('📱', 'Android'));
+
+        const byBrand = {};
+        androidItems.forEach(item => {
+            const brand = item.brand || 'Android';
+            if (!byBrand[brand]) {
+                byBrand[brand] = [];
+            }
+            byBrand[brand].push(item);
+        });
+
+        Object.keys(byBrand).sort().forEach((brand, brandIndex, brandKeys) => {
+            output.push(formatTelegramModel(brand));
+            pushAndroidBrandItems(output, byBrand[brand]);
+
+            if (brandIndex < brandKeys.length - 1) {
+                pushBlankLine(output);
+            }
+        });
+
+        pushBlankLine(output);
+    }
+
+
+    trimTrailingBlankLines(output);
+
+    document.getElementById('telegramOutput').value = output.join('\n');
+    saveTelegramDraft();
+    scrollToTelegramOutput();
+
+}
+
+function copyTelegramText() {
+    const output = document.getElementById('telegramOutput');
+    output.select();
+    output.setSelectionRange(0, 99999);
+    document.execCommand('copy');
+}
+
+function clearTelegramText() {
+    const output = document.getElementById('telegramOutput');
+
+    if (output) {
+        output.value = '';
+    }
+
+    localStorage.removeItem(getTodayDraftKey());
+    updateDraftStatus(false);
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyMarkup();
+    restoreTelegramDraft();
+
+    const output = document.getElementById('telegramOutput');
+    if (output) {
+        output.addEventListener('input', saveTelegramDraft);
+    }
+});
+
+function getAndroidGroupTitle(item) {
+    return (item.model || '').trim();
+}
+
+function pushAndroidBrandItems(output, items) {
+    const byModel = {};
+
+    items.forEach(item => {
+        const model = getAndroidGroupTitle(item);
+        if (!byModel[model]) {
+            byModel[model] = [];
+        }
+        byModel[model].push(item);
+    });
+
+    Object.keys(byModel).sort().forEach((model, modelIndex, keys) => {
+        pushPhoneItems(output, byModel[model], buildAndroidLine);
+
+        if (modelIndex < keys.length - 1) {
+            output.push('');
+        }
+    });
+}
+
+</script>
+
+
+{% endblock %}

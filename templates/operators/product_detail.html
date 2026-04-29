@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product }}{% endblock %}
+{% block page_title %}Карточка товара{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'operators:comparison_table' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад к таблице
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .product-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .product-hero-main,
+    .product-hero-side {
+        padding: 1.7rem;
+    }
+
+    .product-hero-side {
+        border-left: 1px solid #e5ecfb;
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .product-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .product-kpi {
+        padding: 1.15rem;
+        border-radius: 18px;
+        border: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .product-kpi-label {
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 0.45rem;
+    }
+
+    .product-kpi-value {
+        font-size: 1.85rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+    }
+
+    @media (max-width: 991.98px) {
+        .product-hero-grid,
+        .product-kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .product-hero-side {
+            border-left: 0;
+            border-top: 1px solid #e5ecfb;
+        }
+    }
+</style>
+
+<div class="card page-hero-card mb-4">
+    <div class="product-hero-grid">
+        <div class="product-hero-main">
+            <span class="page-hero-kicker"><i class="bi bi-box-seam"></i> Сводная позиция</span>
+            <h2 class="page-hero-title">
+                {% if product.brand and product.brand|lower not in product.model|lower %}
+                    {{ product.brand }} {{ product.model }}
+                {% else %}
+                    {{ product.model }}
+                {% endif %}
+            </h2>
+
+            <div class="d-flex flex-wrap gap-2">
+                {% if product.category %}
+                    <span class="panel-chip"><i class="bi bi-grid"></i> {{ product.category }}</span>
+                {% endif %}
+                {% if product.color %}
+                    <span class="panel-chip">{{ product.color }}</span>
+                {% endif %}
+                {% if product.memory %}
+                    <span class="panel-chip">{{ product.memory }}gb</span>
+                {% endif %}
+                {% if product.region %}
+                    <span class="panel-chip">{{ product.region }}</span>
+                {% endif %}
+                {% if product.sim_type %}
+                    <span class="panel-chip">{{ product.sim_type }}</span>
+                {% endif %}
+                {% if product.specs %}
+                    <span class="panel-chip">{{ product.specs }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="product-hero-side">
+            <div class="section-note mb-1">ID позиции</div>
+            <div class="fw-semibold mb-3">#{{ product.id }}</div>
+            <div class="section-note mb-1">Лучшая цена</div>
+            <div class="fw-semibold">
+                {% if min_price %}
+                    {{ min_price|floatformat:0 }} ₽
+                {% else %}
+                    Нет данных
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="product-kpis mb-4">
+    <div class="product-kpi">
+        <div class="product-kpi-label">Мин. цена</div>
+        <div class="product-kpi-value">{% if min_price %}{{ min_price|floatformat:0 }} ₽{% else %}0 ₽{% endif %}</div>
+    </div>
+    <div class="product-kpi">
+        <div class="product-kpi-label">Макс. цена</div>
+        <div class="product-kpi-value">{% if max_price %}{{ max_price|floatformat:0 }} ₽{% else %}0 ₽{% endif %}</div>
+    </div>
+    <div class="product-kpi">
+        <div class="product-kpi-label">Поставщиков</div>
+        <div class="product-kpi-value">{{ prices|length }}</div>
+    </div>
+    <div class="product-kpi">
+        <div class="product-kpi-label">Разброс</div>
+        <div class="product-kpi-value">
+            {% if spread %}
+                {{ spread|floatformat:0 }} ₽
+            {% else %}
+                0 ₽
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="bi bi-cash-stack"></i> Цены поставщиков</h5>
+        <span class="panel-chip"><i class="bi bi-diagram-3"></i> {{ prices|length }} источников</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Поставщик</th>
+                        <th class="text-center">Цена</th>
+                        <th class="text-center">Дата добавления</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for price in prices %}
+                    <tr>
+                        <td><strong>{{ price.supplier.name }}</strong></td>
+                        <td class="text-center">
+                            <span class="fw-semibold {% if forloop.first %}text-success{% endif %}">
+                                {{ price.price|floatformat:0 }} ₽
+                            </span>
+                            {% if forloop.first %}
+                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle ms-2">
+                                    Лучшая цена
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-muted">{{ price.created_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                            Нет цен для отображения
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

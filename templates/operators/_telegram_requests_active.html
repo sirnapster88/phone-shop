@@ -1,0 +1,12 @@
+{% if active_requests %}
+<div class="telegram-requests-stack" id="telegramRequestsStack">
+    {% for item in active_requests %}
+        {% include 'operators/_telegram_request_card.html' with item=item archived=False %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted" id="telegramRequestsEmptyState">
+    <i class="bi bi-inbox display-6 d-block mb-3"></i>
+    Активных заявок сейчас нет
+</div>
+{% endif %}

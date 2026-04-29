@@ -1,0 +1,521 @@
+{% extends 'base.html' %}
+
+{% block title %}Дашборд оператора{% endblock %}
+{% block page_title %}Панель управления оператора{% endblock %}
+
+{% block page_actions %}{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background:
+            radial-gradient(circle at top right, rgba(96, 165, 250, 0.32), transparent 28%),
+            radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.28), transparent 24%),
+            linear-gradient(135deg, #172033 0%, #24304a 52%, #1b4ed8 100%);
+        color: #fff;
+    }
+
+    .dashboard-hero .section-note,
+    .dashboard-hero .text-muted {
+        color: rgba(255, 255, 255, 0.74) !important;
+    }
+
+    .dashboard-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+
+    .dashboard-hero-copy {
+        padding: 2rem;
+    }
+
+    .dashboard-hero-title {
+        font-size: 2.35rem;
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+        margin: 0 0 0.9rem;
+        max-width: 12ch;
+    }
+
+    .dashboard-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .dashboard-hero-actions .btn {
+        min-width: 190px;
+    }
+
+    .dashboard-hero-actions .ops-btn {
+        min-height: 46px;
+        border-radius: 14px;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
+    }
+
+    .dashboard-hero-actions .ops-btn-primary {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: #173ea6;
+    }
+
+    .dashboard-hero-actions .ops-btn-primary:hover,
+    .dashboard-hero-actions .ops-btn-primary:focus {
+        background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+        border-color: rgba(255, 255, 255, 0.72);
+        color: #12358c;
+    }
+
+    .dashboard-hero-actions .ops-btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        backdrop-filter: blur(10px);
+    }
+
+    .dashboard-hero-actions .ops-btn-secondary:hover,
+    .dashboard-hero-actions .ops-btn-secondary:focus {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.32);
+        color: #fff;
+    }
+
+    .dashboard-hero-meta {
+        display: grid;
+        gap: 1rem;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.08);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+    }
+
+    .hero-metric {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .hero-metric-label {
+        font-size: 0.84rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(255, 255, 255, 0.68);
+        margin-bottom: 0.5rem;
+    }
+
+    .hero-metric-value {
+        font-size: 1.8rem;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .dashboard-quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.1rem;
+    }
+
+    .dashboard-quick-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 0.95rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .dashboard-quick-link:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .dashboard-kpi-card {
+        border-radius: 22px;
+        overflow: hidden;
+    }
+
+    .dashboard-kpi-top {
+        padding: 1.1rem 1.2rem 0;
+    }
+
+    .dashboard-kpi-body {
+        padding: 0.6rem 1.2rem 1.2rem;
+    }
+
+    .dashboard-kpi-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+    }
+
+    .dashboard-kpi-value {
+        font-size: 2rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+        margin: 0.9rem 0 0.35rem;
+    }
+
+    .dashboard-kpi-text {
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .dashboard-action-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .dashboard-action-card {
+        border: 1px solid var(--line-soft);
+        border-radius: 22px;
+        padding: 1.35rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        height: 100%;
+    }
+
+    .dashboard-action-card h5 {
+        margin-top: 1rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .dashboard-action-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+    }
+
+    .dashboard-status-card {
+        border: 1px solid var(--line-soft);
+        border-radius: 22px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        overflow: hidden;
+    }
+
+    @media (max-width: 991.98px) {
+        .dashboard-hero-grid,
+        .dashboard-action-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-hero-meta {
+            border-left: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dashboard-hero-title {
+            font-size: 1.85rem;
+            max-width: none;
+        }
+    }
+</style>
+
+<div class="card dashboard-hero mb-4">
+    <div class="dashboard-hero-grid">
+        <div class="dashboard-hero-copy">
+            <span class="badge rounded-pill text-bg-light text-dark mb-3">Операторский центр</span>
+            <h2 class="dashboard-hero-title">Рабочая панель для обновления витрины и Telegram</h2>
+            <p class="section-note mb-0">
+                Импорт прайсов, ручное обновление цен, сравнение поставщиков и подготовка публикаций в одном месте.
+            </p>
+
+            <div class="dashboard-hero-actions">
+                <a href="{% url 'operators:upload_pricelist' %}" class="btn ops-btn ops-btn-secondary">
+                    <i class="bi bi-upload me-2"></i> Загрузить прайс
+                </a>
+                <a href="{% url 'operators:telegram_price_builder' %}" class="btn ops-btn ops-btn-primary">
+                    <i class="bi bi-telegram me-2"></i> Подготовить прайс
+                </a>
+            </div>
+
+            <div class="dashboard-quick-links">
+                <a href="{% url 'operators:upload_pricelist' %}?mode=manual" class="dashboard-quick-link">
+                    <i class="bi bi-box-arrow-in-down"></i> Каталог и цены
+                </a>
+                <a href="{% url 'operators:comparison_table' %}" class="dashboard-quick-link">
+                    <i class="bi bi-table"></i> Таблица сравнения поставщиков
+                </a>
+                <a href="{% url 'operators:telegram_requests' %}" class="dashboard-quick-link">
+                    <i class="bi bi-chat-dots"></i> Заявки Telegram
+                </a>
+            </div>
+        </div>
+
+        <div class="dashboard-hero-meta">
+            <div class="hero-metric">
+                <div class="hero-metric-label">Последний загруженный прайс</div>
+                {% if latest_pricelist %}
+                <div class="fw-semibold mb-1">{{ latest_pricelist.supplier.name }}</div>
+                <div class="section-note">
+                    {{ latest_pricelist.uploaded_at|date:"d.m.Y H:i" }}
+                    {% if latest_pricelist.uploaded_by %} · {{ latest_pricelist.uploaded_by.username }}{% endif %}
+                </div>
+                {% if latest_pricelist.file %}
+                <div class="section-note mt-2">{{ latest_pricelist.file.name|truncatechars:44 }}</div>
+                {% else %}
+                <div class="section-note mt-2">Текстовый прайс-лист</div>
+                {% endif %}
+                {% else %}
+                <div class="section-note">Прайсы пока не загружались.</div>
+                {% endif %}
+            </div>
+
+            <div class="hero-metric">
+                <div class="hero-metric-label">Последнее обновление цен</div>
+                {% if latest_operator_update %}
+                <div class="fw-semibold mb-1">{{ latest_operator_update.aggregated_product }}</div>
+                <div class="section-note">
+                    {{ latest_operator_update.updated_at|date:"d.m.Y H:i" }}
+                    {% if latest_operator_update.updated_by %} · {{ latest_operator_update.updated_by.username }}{% endif %}
+                </div>
+                {% if latest_operator_update.source_supplier %}
+                <div class="section-note mt-2">Источник: {{ latest_operator_update.source_supplier.name }}</div>
+                {% endif %}
+                {% else %}
+                <div class="section-note">Обновлений витринных цен пока не было.</div>
+                {% endif %}
+            </div>
+
+            <div class="hero-metric">
+                <div class="hero-metric-label">Новые обращения Telegram</div>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <span class="badge bg-primary">Новых: {{ stats.telegram_requests_new_count }}</span>
+                    <span class="badge bg-warning text-dark">В работе: {{ stats.telegram_requests_in_progress_count }}</span>
+                </div>
+                {% if latest_telegram_request %}
+                <div class="section-note">
+                    Последнее обращение: {{ latest_telegram_request.created_at|date:"d.m.Y H:i" }}
+                    {% if latest_telegram_request.customer.first_name or latest_telegram_request.customer.username %}
+                    · {{ latest_telegram_request.customer.first_name|default:latest_telegram_request.customer.username }}
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="section-note">Обращений от клиентов пока не было.</div>
+                {% endif %}
+                <div class="mt-3">
+                    <a href="{% url 'operators:telegram_requests' %}" class="btn ops-btn ops-btn-secondary ops-btn-sm">Открыть заявки</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card section-card mb-4">
+    <div class="card-header">
+        <div class="section-toolbar">
+            <div>
+                <h5 class="card-title mb-0">Основные сценарии</h5>
+            </div>
+            {% if latest_telegram_publication %}
+            <span class="panel-chip">
+                <i class="bi bi-clock-history"></i>
+                {{ latest_telegram_publication.created_at|date:"d.m.Y H:i" }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="dashboard-action-grid">
+            <div class="dashboard-action-card">
+                <span class="dashboard-action-icon" style="background: #edf4ff; color: #1d4ed8;">
+                    <i class="bi bi-upload"></i>
+                </span>
+                <h5>Импорт прайсов</h5>
+                <p class="section-note mb-3">Загрузить Excel, CSV или текст из Telegram.</p>
+                <a href="{% url 'operators:upload_pricelist' %}" class="btn ops-btn ops-btn-secondary">Открыть загрузку</a>
+            </div>
+
+            <div class="dashboard-action-card">
+                <span class="dashboard-action-icon" style="background: #eefcf3; color: #15803d;">
+                    <i class="bi bi-table"></i>
+                </span>
+                <h5>Таблица сравнения поставщиков</h5>
+                <p class="section-note mb-3">Проверить лучшую закупку.</p>
+                <a href="{% url 'operators:comparison_table' %}" class="btn ops-btn ops-btn-success">Открыть таблицу</a>
+            </div>
+
+            <div class="dashboard-action-card">
+                <span class="dashboard-action-icon" style="background: #eef3ff; color: #2563eb;">
+                    <i class="bi bi-telegram"></i>
+                </span>
+                <h5>Telegram-прайс</h5>
+                <p class="section-note mb-3">Сформировать и отправить публикацию.</p>
+                <a href="{% url 'operators:telegram_price_builder' %}" class="btn ops-btn ops-btn-secondary">Подготовить прайс</a>
+            </div>
+
+            <div class="dashboard-action-card">
+                <span class="dashboard-action-icon" style="background: #fff1f2; color: #dc2626;">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </span>
+                <h5>Начать новый день</h5>
+                <p class="section-note mb-3">Очистить рабочие данные текущего цикла.</p>
+                <form method="post"
+                      action="{% url 'operators:start_new_day' %}"
+                      onsubmit="return confirm('Начать новый день? Все загруженные прайсы, товары и таблица агрегации будут удалены.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn ops-btn ops-btn-danger">Очистить данные</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card dashboard-status-card section-card mb-4">
+    <div class="card-body p-4">
+        <div class="section-toolbar mb-3">
+            <div>
+                <h5 class="mb-1">Последняя публикация</h5>
+                {% if latest_telegram_publication %}
+                <div class="section-note">
+                    {% if latest_telegram_publication.kind == 'price' %}Опубликован прайс-лист{% else %}Отправлено сообщение{% endif %}
+                </div>
+                <div class="section-note">
+                    {{ latest_telegram_publication.created_at|date:"d.m.Y H:i" }}
+                    {% if latest_telegram_publication.sent_by %} · {{ latest_telegram_publication.sent_by.username }}{% endif %}
+                </div>
+                {% else %}
+                <div class="section-note">Публикаций пока не было.</div>
+                {% endif %}
+            </div>
+
+            {% if latest_telegram_publication %}
+            <span class="badge {% if latest_telegram_publication.kind == 'price' %}bg-primary{% else %}bg-success{% endif %}">
+                {% if latest_telegram_publication.kind == 'price' %}Прайс{% else %}Ручное сообщение{% endif %}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card section-card mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+            <div>
+                <h5 class="mb-1">Быстрая очистка прайсов</h5>
+                <p class="section-note mb-0">Удаление загруженных прайс-листов по конкретному поставщику или сразу по всем.</p>
+            </div>
+
+            <form method="post" action="{% url 'operators:delete_all_pricelists' %}" class="d-flex flex-wrap gap-2">
+                {% csrf_token %}
+                <select name="supplier_id" class="form-select form-select-sm" style="min-width: 220px;">
+                    <option value="">Все поставщики</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn ops-btn ops-btn-danger"
+                        onclick="return confirm('Удалить выбранные прайс-листы?')">
+                    <i class="bi bi-trash"></i> Удалить прайсы
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card section-card">
+    <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
+            <div>
+                <h5 class="mb-1">
+                    <i class="bi bi-clock-history"></i> Последние загруженные прайс-листы
+                </h5>
+                <p class="section-note mb-0">Последние загрузки по поставщикам.</p>
+            </div>
+            <span class="section-note">{{ recent_pricelists|length }} последних записей</span>
+        </div>
+
+        <div class="table-responsive table-shell">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Поставщик</th>
+                        <th>Источник</th>
+                        <th>Статус</th>
+                        <th>Оператор</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pricelist in recent_pricelists %}
+                    <tr>
+                        <td class="text-nowrap">{{ pricelist.uploaded_at|date:"d.m.Y H:i" }}</td>
+                        <td><strong>{{ pricelist.supplier.name }}</strong></td>
+                        <td>
+                            {% if pricelist.file %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle">Файл</span>
+                                    <small class="text-muted">{{ pricelist.file.name|truncatechars:30 }}</small>
+                                </div>
+                            {% else %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-info text-dark">Текст</span>
+                                    <small class="text-muted">Текстовый прайс</small>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pricelist.status == 'new' %}
+                                <span class="badge bg-primary">Новый</span>
+                            {% elif pricelist.status == 'processing' %}
+                                <span class="badge bg-warning text-dark">Обрабатывается</span>
+                            {% elif pricelist.status == 'processed' %}
+                                <span class="badge bg-success">Обработан</span>
+                            {% elif pricelist.status == 'error' %}
+                                <span class="badge bg-danger">Ошибка</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ pricelist.uploaded_by.username|default:"-" }}</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                {% if pricelist.status == 'new' %}
+                                    <a href="{% url 'operators:process_pricelist' pricelist.id %}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-play-fill"></i> Обработать
+                                    </a>
+                                {% endif %}
+                                <form method="post" action="{% url 'operators:delete_pricelist' pricelist.id %}" class="d-inline"
+                                      onsubmit="return confirm('Удалить прайс-лист от {{ pricelist.supplier.name }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox display-6 d-block mb-3"></i>
+                            Нет загруженных прайс-листов
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

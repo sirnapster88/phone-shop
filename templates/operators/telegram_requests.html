@@ -1,0 +1,517 @@
+{% extends 'base.html' %}
+
+{% block title %}Заявки из Telegram{% endblock %}
+{% block page_title %}Заявки из Telegram{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'operators:dashboard' %}" class="btn ops-btn ops-btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад
+    </a>
+    <span class="btn ops-btn ops-btn-static" id="telegramRequestsNewBadge">
+        <i class="bi bi-chat-dots"></i> Новых: {{ new_requests_count }}
+    </span>
+    <span class="btn ops-btn ops-btn-static" id="telegramRequestsInProgressBadge">
+        <i class="bi bi-hourglass-split"></i> В работе: {{ in_progress_requests_count }}
+    </span>
+    <span class="btn ops-btn ops-btn-static" id="telegramRequestsArchiveBadge">
+        <i class="bi bi-archive"></i> Архив: {{ archived_requests_count }}
+    </span>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .telegram-requests-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .telegram-request-accordion {
+        border: 1px solid rgba(37, 99, 235, 0.14);
+        border-radius: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+
+    .telegram-request-accordion--new {
+        border-color: rgba(37, 99, 235, 0.34);
+        background:
+            radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 30%),
+            linear-gradient(180deg, #ffffff 0%, #eef6ff 100%);
+        box-shadow: 0 20px 44px rgba(37, 99, 235, 0.14);
+    }
+
+    .telegram-request-accordion--new .telegram-request-summary {
+        position: relative;
+    }
+
+    .telegram-request-accordion--new .telegram-request-summary::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #2563eb;
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12);
+        position: absolute;
+        left: -0.2rem;
+        top: 0.25rem;
+    }
+
+    .telegram-request-accordion summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 1.1rem 1.2rem;
+    }
+
+    .telegram-request-accordion summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .telegram-request-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.95fr) auto;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .telegram-request-summary-main {
+        min-width: 0;
+    }
+
+    .telegram-request-summary-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .telegram-request-id {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #334155;
+        font-size: 0.84rem;
+        font-weight: 700;
+    }
+
+    .telegram-request-summary-preview {
+        color: #0f172a;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .telegram-request-summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        color: var(--text-muted);
+        font-size: 0.92rem;
+    }
+
+    .telegram-request-summary-side {
+        min-width: 0;
+        text-align: right;
+    }
+
+    .telegram-request-summary-side .section-note {
+        margin-bottom: 0.25rem;
+    }
+
+    .telegram-request-summary-toggle {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: #eff6ff;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        color: #1d4ed8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        transition: transform 0.2s ease;
+    }
+
+    .telegram-request-accordion[open] .telegram-request-summary-toggle {
+        transform: rotate(180deg);
+    }
+
+    .telegram-request-body {
+        padding: 0 1.2rem 1.2rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .telegram-request-headline {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .telegram-request-info {
+        border-radius: 18px;
+        background: #f8fafc;
+        padding: 0.95rem 1rem;
+    }
+
+    .telegram-system-note {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        background: rgba(248, 113, 113, 0.08);
+        border: 1px solid rgba(248, 113, 113, 0.24);
+        color: #7f1d1d;
+        font-weight: 700;
+    }
+
+    .telegram-thread {
+        display: grid;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .telegram-message {
+        max-width: min(780px, 92%);
+        border-radius: 22px;
+        padding: 1rem 1.1rem;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .telegram-message--customer {
+        justify-self: start;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(96, 165, 250, 0.2));
+        border: 1px solid rgba(37, 99, 235, 0.24);
+    }
+
+    .telegram-message--operator {
+        justify-self: end;
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.14), rgba(74, 222, 128, 0.18));
+        border: 1px solid rgba(22, 163, 74, 0.2);
+    }
+
+    .telegram-message-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.45rem;
+        font-size: 0.86rem;
+        color: rgba(15, 23, 42, 0.72);
+    }
+
+    .telegram-message-label {
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        color: #0f172a;
+    }
+
+    .telegram-message-text {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: #0f172a;
+        font-weight: 600;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .telegram-request-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+    }
+
+    .telegram-autorefresh-note {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .telegram-archive {
+        margin-top: 1.5rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        padding-top: 1.5rem;
+    }
+
+    .telegram-archive-toggle {
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: #f8fafc;
+        overflow: hidden;
+    }
+
+    .telegram-archive-toggle summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 1rem 1.15rem;
+    }
+
+    .telegram-archive-toggle summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .telegram-archive-body {
+        padding: 0 0 0.25rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .telegram-request-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .telegram-request-summary-side {
+            text-align: left;
+        }
+
+        .telegram-request-headline {
+            grid-template-columns: 1fr;
+        }
+
+        .telegram-message {
+            max-width: 100%;
+        }
+    }
+</style>
+
+<div class="card page-hero-card mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+            <div>
+                <span class="page-hero-kicker"><i class="bi bi-bell"></i> Telegram inbox</span>
+                <h2 class="page-hero-title">Входящие обращения клиентов</h2>
+                <p class="section-note mb-0">Каждая заявка раскрывается в отдельный диалог, а новые сообщения клиента автоматически подтягиваются на страницу.</p>
+            </div>
+            <div class="telegram-autorefresh-note">
+                <i class="bi bi-arrow-repeat"></i> Живое обновление без перезагрузки
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card section-card">
+    <div class="card-body p-4">
+        <div id="telegramRequestsActive">
+            {% include 'operators/_telegram_requests_active.html' %}
+        </div>
+        <div id="telegramRequestsArchive">
+            {% include 'operators/_telegram_requests_archive.html' %}
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        window.disableGlobalSystemToasts = true;
+        const storageKey = 'telegram-open-requests';
+        const archiveStateKey = 'telegram-archive-open';
+        const liveEndpoint = "{% url 'operators:telegram_requests_live' %}";
+        const systemEventStorageKey = 'operators-last-system-event-key';
+        const activeContainer = document.getElementById('telegramRequestsActive');
+        const archiveContainer = document.getElementById('telegramRequestsArchive');
+        const newBadge = document.getElementById('telegramRequestsNewBadge');
+        const inProgressBadge = document.getElementById('telegramRequestsInProgressBadge');
+        const archiveBadge = document.getElementById('telegramRequestsArchiveBadge');
+        let refreshInFlight = false;
+        let previousSystemEventKey = sessionStorage.getItem(systemEventStorageKey) || '';
+
+        function getDetailsNodes() {
+            return Array.from(document.querySelectorAll('.telegram-request-accordion'));
+        }
+
+        function getArchiveNode() {
+            return document.querySelector('.telegram-archive-toggle');
+        }
+
+        function saveOpenRequests() {
+            const openIds = getDetailsNodes()
+                .filter((node) => node.open)
+                .map((node) => node.dataset.requestId);
+            localStorage.setItem(storageKey, JSON.stringify(openIds));
+        }
+
+        function restoreOpenRequests() {
+            try {
+                const openIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                getDetailsNodes().forEach((node) => {
+                    if (openIds.includes(node.dataset.requestId)) {
+                        node.open = true;
+                    }
+                });
+            } catch (error) {
+                localStorage.removeItem(storageKey);
+            }
+        }
+
+        function saveArchiveState() {
+            const archiveNode = getArchiveNode();
+            if (!archiveNode) {
+                localStorage.removeItem(archiveStateKey);
+                return;
+            }
+
+            localStorage.setItem(archiveStateKey, archiveNode.open ? 'true' : 'false');
+        }
+
+        function restoreArchiveState(forceOpen = false) {
+            const archiveNode = getArchiveNode();
+            if (!archiveNode) {
+                localStorage.removeItem(archiveStateKey);
+                return;
+            }
+
+            if (forceOpen || localStorage.getItem(archiveStateKey) === 'true') {
+                archiveNode.open = true;
+            }
+        }
+
+        function bindInteractionState() {
+            getDetailsNodes().forEach((node) => {
+                node.addEventListener('toggle', saveOpenRequests);
+            });
+
+            const archiveNode = getArchiveNode();
+            if (archiveNode) {
+                archiveNode.addEventListener('toggle', saveArchiveState);
+            }
+        }
+
+        function shouldSkipRefresh() {
+            if (document.hidden) {
+                return true;
+            }
+
+            const forms = Array.from(document.querySelectorAll('.telegram-reply-form'));
+            return forms.some((form) => {
+                const fields = Array.from(form.querySelectorAll('input[type="text"], textarea'));
+                return fields.some((field) => {
+                    const initialValue = field.defaultValue || '';
+                    return field.value !== initialValue;
+                });
+            });
+        }
+
+        function updateSummaryBadges(data) {
+            if (newBadge) {
+                newBadge.innerHTML = `<i class="bi bi-chat-dots"></i> Новых: ${Number(data.new_requests_count || 0)}`;
+            }
+            if (inProgressBadge) {
+                inProgressBadge.innerHTML = `<i class="bi bi-hourglass-split"></i> В работе: ${Number(data.in_progress_requests_count || 0)}`;
+            }
+            if (archiveBadge) {
+                archiveBadge.innerHTML = `<i class="bi bi-archive"></i> Архив: ${Number(data.archived_requests_count || 0)}`;
+            }
+        }
+
+        function replaceRequestSections(data, options = {}) {
+            if (!activeContainer || !archiveContainer) {
+                return;
+            }
+
+            saveOpenRequests();
+            saveArchiveState();
+
+            activeContainer.innerHTML = data.active_html || '';
+            archiveContainer.innerHTML = data.archive_html || '';
+
+            restoreOpenRequests();
+            restoreArchiveState(Boolean(options.openArchive));
+            bindInteractionState();
+            updateSummaryBadges(data);
+        }
+
+        function maybeShowSystemToast(data, options = {}) {
+            const systemEventKey = data.latest_system_event_key || '';
+            const systemEventType = data.latest_system_event_type || '';
+
+            if (options.primeOnly) {
+                previousSystemEventKey = systemEventKey;
+                sessionStorage.setItem(systemEventStorageKey, previousSystemEventKey || '');
+                return;
+            }
+
+            if (!systemEventKey || systemEventKey === previousSystemEventKey) {
+                if (systemEventKey) {
+                    previousSystemEventKey = systemEventKey;
+                    sessionStorage.setItem(systemEventStorageKey, previousSystemEventKey || '');
+                }
+                return;
+            }
+
+            previousSystemEventKey = systemEventKey;
+            sessionStorage.setItem(systemEventStorageKey, previousSystemEventKey || '');
+
+            if (typeof window.showOperatorToast !== 'function') {
+                return;
+            }
+
+            window.showOperatorToast({
+                variant: systemEventType === 'request_closed' ? 'closed' : 'message',
+                eyebrow: systemEventType === 'request_closed' ? 'Заявка закрыта' : 'Системное событие',
+                title: data.latest_system_event_title || 'Новая системная активность',
+                text: data.latest_system_event_text || '',
+                requestId: Number(data.latest_system_event_request_id || 0) || null,
+                iconClass: systemEventType === 'request_closed' ? 'bi bi-x-circle-fill' : 'bi bi-bell-fill',
+            });
+        }
+
+        async function refreshRequestSections(options = {}) {
+            if (refreshInFlight || shouldSkipRefresh()) {
+                return;
+            }
+
+            refreshInFlight = true;
+            try {
+                const response = await fetch(`${liveEndpoint}?t=${Date.now()}`, {
+                    cache: 'no-store',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+                const activeHtml = (data.active_html || '').trim();
+                const archiveHtml = (data.archive_html || '').trim();
+                const currentActiveHtml = (activeContainer.innerHTML || '').trim();
+                const currentArchiveHtml = (archiveContainer.innerHTML || '').trim();
+
+                if (
+                    activeHtml !== currentActiveHtml
+                    || archiveHtml !== currentArchiveHtml
+                    || options.force
+                ) {
+                    replaceRequestSections(data, options);
+                } else {
+                    updateSummaryBadges(data);
+                }
+
+                maybeShowSystemToast(data, { primeOnly: Boolean(options.force) });
+            } catch (error) {
+                // next poll will retry
+            } finally {
+                refreshInFlight = false;
+            }
+        }
+
+        restoreOpenRequests();
+        restoreArchiveState();
+        bindInteractionState();
+        refreshRequestSections({ force: true });
+        setInterval(refreshRequestSections, 4000);
+    })();
+</script>
+{% endblock %}

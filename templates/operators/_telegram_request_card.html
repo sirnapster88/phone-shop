@@ -1,0 +1,155 @@
+<details class="telegram-request-accordion {% if item.should_highlight and not archived %}telegram-request-accordion--new{% endif %}" data-request-id="{% if archived %}archived-{{ item.id }}{% else %}{{ item.id }}{% endif %}">
+    <summary>
+        <div class="telegram-request-summary">
+            <div class="telegram-request-summary-main">
+                <div class="telegram-request-summary-title">
+                    <span class="telegram-request-id">#{{ item.id }}</span>
+                    <strong>{{ item.customer.first_name|default:item.customer.username|default:item.customer.telegram_id }}</strong>
+                    <span class="text-muted">ID {{ item.customer.telegram_id }}</span>
+                    {% if item.status == 'new' %}
+                    <span class="badge bg-primary">Новая</span>
+                    {% elif item.status == 'in_progress' %}
+                    <span class="badge bg-warning text-dark">В работе</span>
+                    {% elif item.status == 'done' %}
+                    <span class="badge bg-success">Закрыта</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Отменена</span>
+                    {% endif %}
+                    {% if item.closed_by_customer %}
+                    <span class="badge text-bg-danger">Закрыл клиент</span>
+                    {% endif %}
+                    {% if item.should_highlight and not archived %}
+                    <span class="badge text-bg-light border border-primary text-primary">
+                        Новых сообщений: {{ item.unread_messages_count|default:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="telegram-request-summary-preview">
+                    {% if item.last_thread_message %}
+                        {{ item.last_thread_message.text }}
+                    {% else %}
+                        {{ item.client_message }}
+                    {% endif %}
+                </div>
+                <div class="telegram-request-summary-meta mt-2">
+                    <span>{{ item.get_request_type_display }}</span>
+                    <span>{% if archived %}{{ item.updated_at|date:"d.m.Y H:i" }}{% else %}{{ item.created_at|date:"d.m.Y H:i" }}{% endif %}</span>
+                    <span>Сообщений: {{ item.thread_messages|length }}</span>
+                </div>
+            </div>
+            <div class="telegram-request-summary-side">
+                <div class="section-note">Оператор</div>
+                <div>{{ item.assigned_operator.username|default:"Не назначен" }}</div>
+                {% if not archived %}
+                    {% if item.product %}
+                    <div class="section-note mt-2">{{ item.product }}</div>
+                    {% elif item.product_query %}
+                    <div class="section-note mt-2">{{ item.product_query }}</div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="telegram-request-summary-toggle">
+                <i class="bi bi-chevron-down"></i>
+            </div>
+        </div>
+    </summary>
+
+    <div class="telegram-request-body">
+        {% if item.closed_by_customer %}
+        <div class="telegram-system-note {% if archived %}mx-3 mt-3 mb-0{% endif %}">
+            <i class="bi bi-x-circle-fill"></i>
+            <span>Клиент закрыл заявку{% if item.customer_closed_at %} · {{ item.customer_closed_at|date:"d.m.Y H:i" }}{% endif %}</span>
+        </div>
+        {% endif %}
+
+        {% if not archived %}
+        <div class="telegram-request-headline">
+            <div class="telegram-request-info">
+                <div class="section-note mb-1">Тип обращения</div>
+                <div>{{ item.get_request_type_display }}</div>
+            </div>
+            <div class="telegram-request-info">
+                <div class="section-note mb-1">Товар / запрос</div>
+                {% if item.product %}
+                <div>{{ item.product }}</div>
+                {% else %}
+                <div>{{ item.product_query|default:"Без уточнения" }}</div>
+                {% endif %}
+            </div>
+            <div class="telegram-request-info">
+                <div class="section-note mb-1">Комментарий оператора</div>
+                <div>{{ item.operator_note|default:"—" }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="telegram-thread">
+            {% if item.thread_messages %}
+                {% for message in item.thread_messages %}
+                <div class="telegram-message {% if message.sender_type == 'customer' %}telegram-message--customer{% else %}telegram-message--operator{% endif %}">
+                    <div class="telegram-message-header">
+                        <span class="telegram-message-label">
+                            {% if message.sender_type == 'customer' %}
+                            Клиент · {{ item.customer.username|default:item.customer.first_name|default:item.customer.telegram_id }}
+                            {% else %}
+                            Оператор{% if message.operator %} · {{ message.operator.username }}{% endif %}
+                            {% endif %}
+                        </span>
+                        <span>{{ message.created_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="telegram-message-text">{{ message.text }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="telegram-message telegram-message--customer">
+                    <div class="telegram-message-header">
+                        <span class="telegram-message-label">Клиент</span>
+                        <span>{{ item.created_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="telegram-message-text">{{ item.client_message }}</div>
+                </div>
+                {% if item.operator_reply %}
+                <div class="telegram-message telegram-message--operator">
+                    <div class="telegram-message-header">
+                        <span class="telegram-message-label">Оператор{% if item.assigned_operator %} · {{ item.assigned_operator.username }}{% endif %}</span>
+                        <span>{{ item.replied_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="telegram-message-text">{{ item.operator_reply }}</div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if not archived %}
+        <div class="telegram-request-actions">
+            {% if item.status != 'done' %}
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="request_id" value="{{ item.id }}">
+                <input type="hidden" name="action" value="mark_done">
+                <button type="submit" class="btn ops-btn ops-btn-success ops-btn-sm">Закрыть заявку</button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% if item.status != 'done' %}
+        <form method="post" class="row g-3 align-items-start telegram-reply-form">
+            {% csrf_token %}
+            <input type="hidden" name="request_id" value="{{ item.id }}">
+            <input type="hidden" name="action" value="send_reply">
+            <div class="col-12">
+                <label class="form-label">Ответ клиенту</label>
+                <textarea name="reply_text" class="form-control" rows="4" placeholder="Например: Добрый день! Проверяю наличие и вернусь с ответом в ближайшее время."></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Комментарий оператора</label>
+                <input type="text" name="operator_note" class="form-control" value="{{ item.operator_note }}" placeholder="Внутренний комментарий по заявке">
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn ops-btn ops-btn-primary">Ответить в Telegram</button>
+            </div>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</details>

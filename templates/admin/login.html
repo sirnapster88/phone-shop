@@ -1,0 +1,65 @@
+{% extends 'auth_base.html' %}
+{% load i18n static %}
+
+{% block auth_topbar_actions %}
+<a href="{% url 'login' %}" class="auth-topbar-link">
+    <i class="bi bi-box-arrow-in-right"></i> Кабинет оператора
+</a>
+{% endblock %}
+
+{% block auth_side_title %}Служебный доступ в административную часть{% endblock %}
+
+{% block auth_side_content %}
+<div class="auth-feature">
+    <div class="auth-feature-title">Для служебных задач</div>
+    <p class="auth-feature-text">Используйте админку для редких правок данных, пользователей и справочников.</p>
+</div>
+<div class="auth-feature">
+    <div class="auth-feature-title">Операционная работа отдельно</div>
+    <p class="auth-feature-text">Ежедневные действия оператора остаются в основном интерфейсе приложения, а не в стандартной админке.</p>
+</div>
+<div class="auth-feature">
+    <div class="auth-feature-title">Единый визуальный вход</div>
+    <p class="auth-feature-text">Даже служебная авторизация теперь выглядит в стилистике основного продукта.</p>
+</div>
+{% endblock %}
+
+{% block auth_content %}
+<form action="{{ app_path }}" method="post" id="login-form">
+    {% csrf_token %}
+
+    {% if form.errors and not form.non_field_errors %}
+        <div class="auth-error">
+            {% blocktranslate count counter=form.errors.items|length %}
+                Исправьте ошибку ниже.
+            {% plural %}
+                Исправьте ошибки ниже.
+            {% endblocktranslate %}
+        </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}
+            <div class="auth-error">{{ error }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="auth-form-row">
+        <label for="{{ form.username.id_for_label }}">Логин</label>
+        {{ form.username }}
+    </div>
+
+    <div class="auth-form-row">
+        <label for="{{ form.password.id_for_label }}">Пароль</label>
+        {{ form.password }}
+        <input type="hidden" name="next" value="{{ next }}">
+    </div>
+
+    <button type="submit" class="auth-submit">Войти</button>
+</form>
+
+<div class="auth-note">
+    <strong>Админ-вход:</strong> используйте его для служебных задач и редких правок данных. Основная ежедневная
+    работа оператора остается в интерфейсе приложения.
+</div>
+{% endblock %}

@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+
+{% block title %}Сравнение цен поставщиков{% endblock %}
+{% block page_title %}Сравнение цен поставщиков{% endblock %}
+{% block page_shell_class %}page-shell--wide{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'operators:upload_pricelist' %}" class="btn ops-btn ops-btn-primary">
+        <i class="bi bi-cloud-upload"></i> Загрузить прайс-лист
+    </a>
+
+    <form method="post" action="{% url 'operators:run_aggregation' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn ops-btn ops-btn-success">
+            <i class="bi bi-arrow-repeat"></i> Обновить агрегацию
+        </button>
+    </form>
+
+    <a href="{% url 'operators:telegram_price_builder' %}" class="btn ops-btn ops-btn-secondary">
+        <i class="bi bi-telegram"></i> Сформировать прайс
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .comparison-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.85fr);
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .comparison-hero-main,
+    .comparison-hero-side {
+        padding: 1.25rem;
+    }
+
+    .comparison-hero-side {
+        border-left: 1px solid #e5ecfb;
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .comparison-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .comparison-kpi {
+        padding: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .comparison-kpi-label {
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 0.5rem;
+    }
+
+    .comparison-kpi-value {
+        font-size: 1.45rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+    }
+
+    .comparison-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .comparison-table-wrap {
+        overflow-x: auto;
+    }
+
+    .comparison-table {
+        font-size: 0.86rem;
+    }
+
+    .comparison-table th.sticky-col,
+    .comparison-table td.sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #fff;
+        min-width: 235px;
+        box-shadow: 10px 0 16px rgba(15, 23, 42, 0.05);
+    }
+
+    .comparison-table thead th.sticky-col {
+        background: #f8faff;
+        z-index: 3;
+    }
+
+    .comparison-table > :not(caption) > * > * {
+        padding: 0.56rem 0.5rem;
+    }
+
+    .best-price-cell {
+        background: #ecfdf3;
+        border: 1px solid #bbf7d0;
+        border-radius: 999px;
+        padding: 0.24rem 0.48rem;
+        display: inline-block;
+        min-width: 70px;
+    }
+
+    .supplier-head {
+        min-width: 92px;
+        white-space: normal;
+        font-size: 0.78rem;
+        line-height: 1.25;
+    }
+
+    .filter-panel {
+        border: 1px solid #e6eaf2;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(24, 33, 47, 0.06);
+    }
+
+    .comparison-product-name {
+        font-weight: 700;
+        font-size: 0.94rem;
+    }
+
+    .comparison-product-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-top: 0.4rem;
+    }
+
+    .comparison-product-meta .badge {
+        font-size: 0.72rem;
+        padding: 0.28rem 0.48rem;
+    }
+
+    .comparison-product-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .comparison-product-link:hover .comparison-product-name {
+        color: var(--brand);
+    }
+
+    @media (max-width: 991.98px) {
+        .comparison-hero-grid,
+        .comparison-kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .comparison-hero-side {
+            border-left: 0;
+            border-top: 1px solid #e5ecfb;
+        }
+
+        .comparison-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+
+<div class="card page-hero-card mb-4">
+    <div class="comparison-hero-grid">
+        <div class="comparison-hero-main">
+            <span class="page-hero-kicker"><i class="bi bi-diagram-3"></i> Аналитика поставщиков</span>
+            <h2 class="page-hero-title">Таблица сравнения закупочных цен по всей базе</h2>
+            <p class="section-note mb-0">
+                Быстрый обзор лучших закупок по всей базе.
+            </p>
+
+            <div class="page-hero-actions">
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersPanel">
+                    <i class="bi bi-funnel"></i> Фильтры
+                </button>
+                <a href="{% url 'operators:telegram_price_builder' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-telegram"></i> Перейти в Telegram builder
+                </a>
+            </div>
+        </div>
+
+        <div class="comparison-hero-side">
+            <div class="comparison-kpi-grid">
+                <div class="comparison-kpi">
+                    <div class="comparison-kpi-label">Позиции</div>
+                    <div class="comparison-kpi-value">{{ total_products }}</div>
+                </div>
+                <div class="comparison-kpi">
+                    <div class="comparison-kpi-label">Поставщики</div>
+                    <div class="comparison-kpi-value">{{ suppliers|length }}</div>
+                </div>
+                <div class="comparison-kpi">
+                    <div class="comparison-kpi-label">Режим</div>
+                    <div class="comparison-kpi-value" style="font-size: 1.2rem; letter-spacing: 0;">
+                        {% if filters.best_only %}Лучшие{% else %}Полный{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="collapse mb-4 {% if filters.model or filters.supplier or filters.price_min or filters.price_max or filters.best_only %}show{% endif %}" id="filtersPanel">
+    <div class="card filter-panel">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Фильтры таблицы</h5>
+        </div>
+        <div class="card-body p-4">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Название</label>
+                    <input type="text" name="model" class="form-control" value="{{ filters.model }}" placeholder="iPhone 16 Pro...">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Поставщик</label>
+                    <select name="supplier" class="form-select">
+                        <option value="">Все</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if filters.supplier == supplier.id|stringformat:"i" %}selected{% endif %}>
+                            {{ supplier.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Цена от</label>
+                    <input type="number" name="price_min" class="form-control" value="{{ filters.price_min }}" placeholder="0">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Цена до</label>
+                    <input type="number" name="price_max" class="form-control" value="{{ filters.price_max }}" placeholder="1000000">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Сортировка</label>
+                    <select name="sort" class="form-select">
+                        <option value="model" {% if filters.sort == 'model' %}selected{% endif %}>По модели</option>
+                        <option value="min_price" {% if filters.sort == 'min_price' %}selected{% endif %}>По мин. цене</option>
+                        <option value="max_price" {% if filters.sort == 'max_price' %}selected{% endif %}>По макс. цене</option>
+                        <option value="suppliers_count" {% if filters.sort == 'suppliers_count' %}selected{% endif %}>По поставщикам</option>
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="best_only" value="1" id="bestOnlyCheck" {% if filters.best_only %}checked{% endif %}>
+                        <label class="form-check-label" for="bestOnlyCheck">
+                            Показать только лучшие цены
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
+                    <a href="{% url 'operators:comparison_table' %}" class="btn btn-outline-secondary">
+                        Сбросить
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Применить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <div class="comparison-toolbar mb-4">
+            <div>
+                <h5 class="mb-1"><i class="bi bi-table"></i> Таблица сравнения</h5>
+                <p class="section-note mb-0">Компактный вид по поставщикам и минимальным ценам.</p>
+            </div>
+            <span class="panel-chip"><i class="bi bi-grid-3x3-gap"></i> {{ total_products }} позиций</span>
+        </div>
+
+        <div class="comparison-table-wrap">
+            <table class="table table-hover table-bordered align-middle comparison-table">
+                <thead>
+                    <tr>
+                        <th class="sticky-col">Товар</th>
+                        {% for supplier in suppliers %}
+                        <th class="text-center supplier-head">{{ supplier.name }}</th>
+                        {% endfor %}
+                        <th class="text-center">Мин.</th>
+                        <th class="text-center">Макс.</th>
+                        <th class="text-center">Кол-во</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td class="sticky-col">
+                            {% if product.category %}
+                                <div class="mb-2">
+                                    <span class="badge rounded-pill bg-light text-dark border">{{ product.category }}</span>
+                                </div>
+                            {% endif %}
+
+                            <a href="{% url 'operators:product_detail' product.id %}" class="comparison-product-link">
+                                <div class="comparison-product-name">
+                                    {% if product.brand and product.brand|lower not in product.model|lower %}
+                                        {{ product.brand }} {{ product.model }}
+                                    {% else %}
+                                        {{ product.model }}
+                                    {% endif %}
+                                </div>
+                            </a>
+
+                            {% if product.color or product.memory or product.region or product.sim_type or product.specs %}
+                            <div class="comparison-product-meta">
+                                {% if product.color %}
+                                    <span class="badge rounded-pill text-bg-secondary">{{ product.color }}</span>
+                                {% endif %}
+
+                                {% if product.specs and '/' in product.specs %}
+                                    <span class="badge rounded-pill text-bg-primary">{{ product.specs }}</span>
+                                {% elif product.memory %}
+                                    <span class="badge rounded-pill text-bg-primary">{{ product.memory }}gb</span>
+                                {% endif %}
+
+                                {% if product.region %}
+                                    <span class="badge rounded-pill bg-warning text-dark">
+                                        {% if product.region == 'Japan' %}🇯🇵{% endif %}
+                                        {% if product.region == 'India' %}🇮🇳{% endif %}
+                                        {% if product.region == 'USA' %}🇺🇸{% endif %}
+                                        {% if product.region == 'China' %}🇨🇳{% endif %}
+                                        {% if product.region == 'Hong Kong' %}🇭🇰{% endif %}
+                                        {% if product.region == 'Europe' %}🇪🇺{% endif %}
+                                        {% if product.region == 'UAE' %}🇦🇪{% endif %}
+                                        {% if product.region == 'KZ' %}🇰🇿{% endif %}
+                                        {{ product.region }}
+                                    </span>
+                                {% endif %}
+
+                                {% if product.sim_type %}
+                                    <span class="badge rounded-pill text-bg-dark">{{ product.sim_type }}</span>
+                                {% endif %}
+
+                                {% if product.specs and '/' not in product.specs %}
+                                    <span class="badge rounded-pill bg-info text-dark">{{ product.specs }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        {% for supplier in suppliers %}
+                        <td class="text-center">
+                            {% for price in product.price_list %}
+                                {% if price.supplier_id == supplier.id %}
+                                    {% if not filters.best_only or price.price == product.min_price %}
+                                        {% if price.price == product.min_price %}
+                                            <span class="best-price-cell fw-bold text-success">
+                                                {{ price.price|floatformat:0 }} ₽
+                                            </span>
+                                        {% else %}
+                                            <span>{{ price.price|floatformat:0 }} ₽</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+
+                        <td class="text-center fw-bold text-success">{{ product.min_price|floatformat:0 }} ₽</td>
+                        <td class="text-center text-danger">{{ product.max_price|floatformat:0 }} ₽</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill">{{ product.suppliers_count }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ suppliers|length|add:4 }}" class="text-center py-5">
+                            <i class="bi bi-inbox display-6 d-block mb-3 text-muted"></i>
+                            <h5 class="text-muted">Нет товаров для отображения</h5>
+                            <p class="text-muted mb-0">Загрузите прайс-листы или измените фильтры.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

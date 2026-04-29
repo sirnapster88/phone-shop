@@ -1,0 +1,42 @@
+{% extends 'auth_base.html' %}
+
+{% block auth_topbar_actions %}
+<a href="/admin/login/" class="auth-topbar-link">
+    <i class="bi bi-shield-lock"></i> Админ-вход
+</a>
+{% endblock %}
+
+{% block auth_content %}
+<form method="post">
+    {% csrf_token %}
+
+    {% if form.errors %}
+        <div class="auth-error">
+            Неверный логин или пароль.
+        </div>
+    {% endif %}
+
+    <div class="auth-form-row">
+        <label for="{{ form.username.id_for_label }}">Логин</label>
+        {{ form.username }}
+    </div>
+
+    <div class="auth-form-row">
+        <label for="{{ form.password.id_for_label }}">Пароль</label>
+        {{ form.password }}
+    </div>
+
+    {% if next %}
+        <input type="hidden" name="next" value="{{ next }}">
+    {% endif %}
+
+    <button type="submit" class="auth-submit">Войти</button>
+</form>
+
+<div class="auth-note">
+    <strong>Рабочий вход:</strong> после авторизации вы сразу попадете в операторский кабинет с загрузкой прайсов,
+    ручным вводом цен, сравнением поставщиков и Telegram-публикациями.
+</div>
+{% endblock %}
+
+{% block auth_side_title %}Единый вход в операторскую систему{% endblock %}
