@@ -31,6 +31,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
 from .telegram_service import (
+    answer_telegram_callback,
     send_telegram_messages,
     send_telegram_photo,
     delete_telegram_messages,
@@ -1262,11 +1263,14 @@ def telegram_bot_webhook(request, webhook_secret=''):
             f'update_id={payload.get("update_id")} error={exc!r}\n{traceback.format_exc()}'
         )
         try:
-            send_operator_notification(
-                'Webhook error on Render\n'
-                f'update_id={payload.get("update_id")}\n'
-                f'error={exc!r}'
-            )
+            operator_chat_id = getattr(settings, 'TELEGRAM_OPERATOR_CHAT_ID', '').strip()
+            public_chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', '').strip()
+            if operator_chat_id and operator_chat_id != public_chat_id:
+                send_operator_notification(
+                    'Webhook error on Render\n'
+                    f'update_id={payload.get("update_id")}\n'
+                    f'error={exc!r}'
+                )
         except Exception:
             pass
         return JsonResponse({'ok': False, 'error': 'internal_error'}, status=500)
