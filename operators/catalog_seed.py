@@ -1,13 +1,14 @@
 from pathlib import Path
 
 from .models import AggregatedProduct
-from .parser import TextPriceParser
 
 
 PRICE_TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "price.txt"
 
 
 def _load_seed_rows_from_price_file():
+    from .parser import TextPriceParser
+
     if not PRICE_TEMPLATE_PATH.exists():
         return []
 

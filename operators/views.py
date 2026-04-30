@@ -22,9 +22,6 @@ from .models import (
     TelegramCustomerMessage,
     TelegramCustomerRequest,
 )
-from .parser import SmartParser, TextPriceParser  # <--- ДОБАВИЛИ ИМПОРТ
-from .aggregator import Aggregator
-from .catalog_seed import seed_default_catalog
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
@@ -546,6 +543,9 @@ def upload_pricelist(request):
                 return redirect('operators:upload_pricelist')
 
             # Парсим текст
+            from .parser import TextPriceParser
+            from .aggregator import Aggregator
+
             parser = TextPriceParser(text)
             products_data = parser.parse()
 
@@ -597,6 +597,8 @@ def upload_pricelist(request):
 @login_required
 @require_POST
 def seed_catalog_view(request):
+    from .catalog_seed import seed_default_catalog
+
     result = seed_default_catalog()
     if result['created']:
         messages.success(
@@ -624,6 +626,9 @@ def process_pricelist(request, pricelist_id):
     pricelist = get_object_or_404(PriceList, id=pricelist_id)
     
     try:
+        from .parser import SmartParser
+        from .aggregator import Aggregator
+
         pricelist.status = 'processing'
         pricelist.save()
         

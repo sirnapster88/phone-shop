@@ -1,8 +1,6 @@
 import re
 from collections import Counter
 
-import pandas as pd
-
 
 class SmartParser:
     """
@@ -69,8 +67,23 @@ class SmartParser:
         self.df = None
         self.file_brand = None
 
+    @staticmethod
+    def _get_pandas():
+        import pandas as pd
+        return pd
+
+    @staticmethod
+    def _is_missing(value):
+        if value is None:
+            return True
+        try:
+            return bool(SmartParser._get_pandas().isna(value))
+        except Exception:
+            return False
+
     def read_file(self):
         try:
+            pd = self._get_pandas()
             lower = self.file_path.lower()
 
             if lower.endswith((".xlsx", ".xls")):
@@ -95,14 +108,14 @@ class SmartParser:
         return False
 
     def normalize_text(self, value):
-        if value is None or pd.isna(value):
+        if self._is_missing(value):
             return ""
         text = str(value).replace("\xa0", " ").strip()
         text = re.sub(r"\s+", " ", text)
         return text
 
     def normalize_price(self, value):
-        if value is None or pd.isna(value):
+        if self._is_missing(value):
             return None
 
         if isinstance(value, (int, float)) and not isinstance(value, bool):
