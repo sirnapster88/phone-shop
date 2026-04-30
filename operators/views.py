@@ -24,6 +24,7 @@ from .models import (
     ProductPrice,
     TelegramPublication,
     OperatorPrice,
+    TelegramCustomer,
     TelegramCustomerMessage,
     TelegramCustomerRequest,
 )
