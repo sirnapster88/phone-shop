@@ -100,8 +100,8 @@ def delete_customer_message(chat_id, message_id):
 
     try:
         delete_telegram_messages_from_chat(chat_id, [message_id])
-    except ValueError:
-        # Some chats/messages cannot be deleted by Telegram policy.
+    except Exception:
+        # We never want a failed cleanup attempt to break the customer flow.
         pass
 
 
