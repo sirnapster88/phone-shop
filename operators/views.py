@@ -1,4 +1,5 @@
 import json
+import logging
 from secrets import compare_digest
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -37,6 +38,8 @@ from .telegram_bot import close_request_and_notify_customer
 from .telegram_bot import send_request_message
 from .telegram_cleanup import process_due_cleanup_tasks
 # Create your views here.
+
+logger = logging.getLogger(__name__)
 
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
@@ -1087,8 +1090,17 @@ def telegram_bot_webhook(request, webhook_secret=''):
     except json.JSONDecodeError:
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
-    process_due_cleanup_tasks(limit=20)
-    handle_telegram_update(payload)
+    try:
+        process_due_cleanup_tasks(limit=20)
+        handle_telegram_update(payload)
+    except Exception:
+        logger.exception(
+            'Telegram webhook failed. update_id=%s keys=%s',
+            payload.get('update_id'),
+            list(payload.keys()),
+        )
+        return JsonResponse({'ok': False, 'error': 'internal_error'}, status=500)
+
     return JsonResponse({'ok': True})
 
 
