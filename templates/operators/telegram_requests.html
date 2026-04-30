@@ -321,8 +321,10 @@
         const newBadge = document.getElementById('telegramRequestsNewBadge');
         const inProgressBadge = document.getElementById('telegramRequestsInProgressBadge');
         const archiveBadge = document.getElementById('telegramRequestsArchiveBadge');
+        const composeLockDurationMs = 45000;
         let refreshInFlight = false;
         let previousSystemEventKey = sessionStorage.getItem(systemEventStorageKey) || '';
+        let composeLockedUntil = 0;
 
         function getDetailsNodes() {
             return Array.from(document.querySelectorAll('.telegram-request-accordion'));
@@ -383,6 +385,28 @@
             if (archiveNode) {
                 archiveNode.addEventListener('toggle', saveArchiveState);
             }
+
+            const forms = Array.from(document.querySelectorAll('.telegram-reply-form'));
+            forms.forEach((form) => {
+                const fields = Array.from(form.querySelectorAll('input[type="text"], textarea'));
+                fields.forEach((field) => {
+                    field.addEventListener('focus', () => {
+                        composeLockedUntil = Date.now() + composeLockDurationMs;
+                    });
+                    field.addEventListener('input', () => {
+                        composeLockedUntil = Date.now() + composeLockDurationMs;
+                    });
+                    field.addEventListener('blur', () => {
+                        if (field.value.trim()) {
+                            composeLockedUntil = Date.now() + composeLockDurationMs;
+                        }
+                    });
+                });
+
+                form.addEventListener('submit', () => {
+                    composeLockedUntil = 0;
+                });
+            });
         }
 
         function shouldSkipRefresh() {
@@ -390,12 +414,15 @@
                 return true;
             }
 
+            if (Date.now() < composeLockedUntil) {
+                return true;
+            }
+
             const forms = Array.from(document.querySelectorAll('.telegram-reply-form'));
             return forms.some((form) => {
                 const fields = Array.from(form.querySelectorAll('input[type="text"], textarea'));
                 return fields.some((field) => {
-                    const initialValue = field.defaultValue || '';
-                    return document.activeElement === field || field.value !== initialValue;
+                    return document.activeElement === field || field.value.trim().length > 0;
                 });
             });
         }
