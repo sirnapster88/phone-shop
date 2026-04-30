@@ -71,6 +71,13 @@ def get_bot_main_menu():
     }
 
 
+def get_welcome_text():
+    return (
+        '👋 Здравствуйте! Я помогу получить актуальный прайс, уточнить цену и наличие '
+        'или передать сообщение оператору.\n\nВыберите действие:'
+    )
+
+
 def get_close_request_keyboard():
     return {
         'inline_keyboard': [
@@ -161,13 +168,26 @@ def start_request_flow(customer, request_type):
     add_pending_chat_message_id(customer, sent_message.get('message_id'))
 
 
-def send_welcome(customer):
-    sent_message = send_telegram_message_to_chat(
-        customer.telegram_id,
-        '👋 Здравствуйте! Я помогу получить актуальный прайс, уточнить цену и наличие или передать сообщение оператору.\n\nВыберите действие:',
-        reply_markup=get_bot_main_menu(),
-    )
-    add_pending_chat_message_id(customer, sent_message.get('message_id'))
+def send_welcome(chat_id, customer=None):
+    sent_message = None
+
+    try:
+        sent_message = send_telegram_message_to_chat(
+            chat_id,
+            get_welcome_text(),
+            reply_markup=get_bot_main_menu(),
+        )
+    except Exception:
+        # Fallback to plain text if inline keyboard or Telegram response causes trouble.
+        sent_message = send_telegram_message_to_chat(
+            chat_id,
+            get_welcome_text(),
+        )
+
+    if customer and sent_message:
+        add_pending_chat_message_id(customer, sent_message.get('message_id'))
+
+    return sent_message
 
 
 def send_latest_price_to_customer(customer):
@@ -532,24 +552,30 @@ def handle_callback_query(callback_query):
 
 def handle_message(message):
     from_user = message.get('from', {})
-    customer = get_or_create_telegram_customer(from_user)
+    chat_id = message.get('chat', {}).get('id') or from_user.get('id')
     text = (message.get('text') or '').strip()
 
     if not text:
-        send_welcome(customer)
+        customer = get_or_create_telegram_customer(from_user)
+        send_welcome(chat_id, customer=customer)
         return
 
     if text.startswith('/start'):
-        delete_customer_message(customer.telegram_id, message.get('message_id'))
-        parts = text.split(maxsplit=1)
-        start_param = parts[1].strip() if len(parts) > 1 else ''
+        send_welcome(chat_id)
+        try:
+            customer = get_or_create_telegram_customer(from_user)
+            delete_customer_message(customer.telegram_id, message.get('message_id'))
 
-        if start_param in REQUEST_TYPE_LABELS:
-            start_request_flow(customer, start_param)
-            return
+            parts = text.split(maxsplit=1)
+            start_param = parts[1].strip() if len(parts) > 1 else ''
 
-        send_welcome(customer)
+            if start_param in REQUEST_TYPE_LABELS:
+                start_request_flow(customer, start_param)
+        except Exception:
+            pass
         return
+
+    customer = get_or_create_telegram_customer(from_user)
 
     if text.startswith('/price'):
         send_latest_price_to_customer(customer)
