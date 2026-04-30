@@ -1093,7 +1093,6 @@ def telegram_bot_webhook(request, webhook_secret=''):
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
     try:
-        process_due_cleanup_tasks(limit=20)
         handle_telegram_update(payload)
     except Exception as exc:
         logger.exception(
