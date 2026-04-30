@@ -65,6 +65,43 @@ def _mask_secret(value, keep_start=6, keep_end=4):
         return value
     return f'{value[:keep_start]}...{value[-keep_end:]}'
 
+
+def _minimal_bot_welcome_text():
+    return (
+        '👋 Здравствуйте!\n\n'
+        'Бот снова в сети. Сейчас работает безопасный режим без заявок, '
+        'но уже можно открыть меню и проверить кнопки.'
+    )
+
+
+def _minimal_bot_menu():
+    return {
+        'inline_keyboard': [
+            [
+                {'text': '📋 Смотреть прайс', 'callback_data': 'minimal:price'},
+            ],
+            [
+                {'text': '💵 Уточнить цену', 'callback_data': 'minimal:price_request'},
+                {'text': '📦 Уточнить наличие', 'callback_data': 'minimal:availability'},
+            ],
+            [
+                {'text': '🛒 Оформить заказ', 'callback_data': 'minimal:order'},
+                {'text': '👨‍💼 Связаться с оператором', 'callback_data': 'minimal:operator'},
+            ],
+        ]
+    }
+
+
+def _minimal_bot_callback_reply(callback_data):
+    replies = {
+        'minimal:price': 'Прайс будет возвращен на следующем этапе восстановления.',
+        'minimal:price_request': 'Сценарий уточнения цены скоро вернем. База Telegram уже жива.',
+        'minimal:availability': 'Сценарий наличия скоро вернем. Сейчас тестируем только стабильный контур.',
+        'minimal:order': 'Оформление заказа подключим следующим этапом после проверки меню.',
+        'minimal:operator': 'Связь с оператором вернем после восстановления заявок.',
+    }
+    return replies.get(callback_data, 'Кнопка получена. Бот работает в безопасном режиме.')
+
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
     return redirect('operators:dashboard')
@@ -1165,12 +1202,21 @@ def telegram_bot_webhook(request, webhook_secret=''):
             callback_query = payload['callback_query']
             callback_id = callback_query.get('id')
             callback_data = callback_query.get('data', '')
+            callback_message = callback_query.get('message') or {}
+            callback_chat = callback_message.get('chat') or {}
+            callback_chat_id = callback_chat.get('id')
             _append_telegram_debug_log(
                 f'callback_received id={callback_id} data={callback_data!r}'
             )
             if callback_id:
-                answer_telegram_callback(callback_id, text='Бот в минимальном режиме')
+                answer_telegram_callback(callback_id, text='Принято')
                 _append_telegram_debug_log(f'callback_answered id={callback_id}')
+            if callback_chat_id:
+                reply_text = _minimal_bot_callback_reply(callback_data)
+                send_telegram_message_to_chat(callback_chat_id, reply_text)
+                _append_telegram_debug_log(
+                    f'callback_message_sent chat_id={callback_chat_id} reply={reply_text!r}'
+                )
             return JsonResponse({'ok': True, 'mode': 'minimal'})
 
         message = payload.get('message') or {}
@@ -1187,8 +1233,21 @@ def telegram_bot_webhook(request, webhook_secret=''):
             _append_telegram_debug_log('message_skipped_no_chat_id')
             return JsonResponse({'ok': True, 'mode': 'minimal'})
 
-        reply_text = 'Привет' if text.startswith('/start') else 'Бот работает в минимальном режиме. Отправьте /start'
-        send_telegram_message_to_chat(chat_id, reply_text)
+        if text.startswith('/start'):
+            start_param = text.split(maxsplit=1)[1].strip() if ' ' in text else ''
+            reply_text = _minimal_bot_welcome_text()
+            if start_param == 'price':
+                reply_text += '\n\nОткрыт сценарий: прайс / цена и наличие.'
+            elif start_param == 'order':
+                reply_text += '\n\nОткрыт сценарий: оформление заказа.'
+            elif start_param == 'question':
+                reply_text += '\n\nОткрыт сценарий: связь с оператором.'
+
+            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+        else:
+            reply_text = 'Бот работает в безопасном режиме. Нажмите /start, чтобы открыть меню.'
+            send_telegram_message_to_chat(chat_id, reply_text)
+
         _append_telegram_debug_log(
             f'message_sent chat_id={chat_id} reply={reply_text!r}'
         )
