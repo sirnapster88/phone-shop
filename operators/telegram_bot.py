@@ -561,7 +561,7 @@ def handle_message(message):
         return
 
     if text.startswith('/start'):
-        send_welcome(chat_id)
+        send_telegram_message_to_chat(chat_id, get_welcome_text())
         try:
             customer = get_or_create_telegram_customer(from_user)
             delete_customer_message(customer.telegram_id, message.get('message_id'))

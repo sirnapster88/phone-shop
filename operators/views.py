@@ -32,6 +32,7 @@ from .telegram_service import (
     send_telegram_photo,
     delete_telegram_messages,
     send_telegram_message_to_chat,
+    send_operator_notification,
 )
 from django.contrib.auth import logout
 from .telegram_bot import get_active_customer_request, get_channel_entry_keyboard, handle_telegram_update
@@ -1094,7 +1095,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
     try:
         process_due_cleanup_tasks(limit=20)
         handle_telegram_update(payload)
-    except Exception:
+    except Exception as exc:
         logger.exception(
             'Telegram webhook failed. update_id=%s keys=%s',
             payload.get('update_id'),
@@ -1106,6 +1107,14 @@ def telegram_bot_webhook(request, webhook_secret=''):
             flush=True,
         )
         traceback.print_exc()
+        try:
+            send_operator_notification(
+                'Webhook error on Render\n'
+                f'update_id={payload.get("update_id")}\n'
+                f'error={exc!r}'
+            )
+        except Exception:
+            pass
         return JsonResponse({'ok': False, 'error': 'internal_error'}, status=500)
 
     return JsonResponse({'ok': True})
