@@ -3,13 +3,13 @@
 ## Services
 
 - `phone-shop-demo` - Django web service
-- `phone-shop-db` - Render Postgres
 
 ## Before first deploy
 
 1. Push the repository to GitHub.
 2. In Render, create a new Blueprint from this repository.
 3. During setup, fill in secret env vars:
+   - `DATABASE_URL`
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - `TELEGRAM_OPERATOR_CHAT_ID`
@@ -32,6 +32,10 @@ Example:
 
 - Free Render web services have an ephemeral filesystem.
 - Files in `media/` are not durable on the free plan.
+- The free Render blueprint no longer creates a database automatically.
+- Provide `DATABASE_URL` manually from:
+  - an existing Render Postgres database
+  - or another free PostgreSQL provider
 - For a more stable demo with uploaded photos, move media to object storage or use a paid disk-backed service.
 - Delayed Telegram cleanup works in lazy mode on the free plan:
   - cleanup is processed on webhook calls
