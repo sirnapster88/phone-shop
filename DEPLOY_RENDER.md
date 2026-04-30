@@ -10,6 +10,9 @@
 2. In Render, create a new Blueprint from this repository.
 3. During setup, fill in secret env vars:
    - `DATABASE_URL`
+   - `DEMO_ADMIN_USERNAME`
+   - `DEMO_ADMIN_PASSWORD`
+   - `DEMO_ADMIN_EMAIL`
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - `TELEGRAM_OPERATOR_CHAT_ID`

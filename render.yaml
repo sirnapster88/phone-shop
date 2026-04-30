@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: sh -c 'python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT'
+    startCommand: sh -c 'python manage.py migrate --noinput && python manage.py bootstrap_demo_admin && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT'
     healthCheckPath: /healthz/
     autoDeployTrigger: commit
     envVars:
@@ -28,6 +28,12 @@ services:
       - key: TELEGRAM_WEBHOOK_SECRET
         generateValue: true
       - key: DATABASE_URL
+        sync: false
+      - key: DEMO_ADMIN_USERNAME
+        sync: false
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_ADMIN_EMAIL
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
