@@ -184,11 +184,12 @@ def _minimal_close_active_request(customer):
 
 def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
     cleaned_text = (text or '').strip()
-    request_type = customer.pending_request_type or TelegramCustomerRequest.TYPE_QUESTION
+    request_type = customer.pending_request_type or ''
     active_request = _minimal_get_active_request(customer)
     created = active_request is None
 
     if active_request is None:
+        request_type = request_type or TelegramCustomerRequest.TYPE_QUESTION
         publication = TelegramPublication.objects.filter(
             kind=TelegramPublication.KIND_PRICE,
             is_active=True,
@@ -205,10 +206,11 @@ def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
             unread_messages_count=1,
         )
     else:
-        active_request.request_type = request_type or active_request.request_type
         active_request.client_message = cleaned_text
         active_request.has_unread_customer_message = True
         active_request.unread_messages_count = (active_request.unread_messages_count or 0) + 1
+        if request_type:
+            active_request.request_type = request_type
         if not active_request.product_query:
             active_request.product_query = cleaned_text
         active_request.save(
