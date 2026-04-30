@@ -1,5 +1,6 @@
 import json
 import logging
+import tempfile
 import traceback
 from pathlib import Path
 from secrets import compare_digest
@@ -43,13 +44,16 @@ from .telegram_cleanup import process_due_cleanup_tasks
 # Create your views here.
 
 logger = logging.getLogger(__name__)
-TELEGRAM_DEBUG_LOG_PATH = Path(__file__).resolve().parent.parent / 'telegram_webhook_debug.log'
+TELEGRAM_DEBUG_LOG_PATH = Path(tempfile.gettempdir()) / 'telegram_webhook_debug.log'
 
 
 def _append_telegram_debug_log(message):
-    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
-    with TELEGRAM_DEBUG_LOG_PATH.open('a', encoding='utf-8') as log_file:
-        log_file.write(f'[{timestamp}] {message}\n')
+    try:
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        with TELEGRAM_DEBUG_LOG_PATH.open('a', encoding='utf-8') as log_file:
+            log_file.write(f'[{timestamp}] {message}\n')
+    except Exception:
+        pass
 
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
