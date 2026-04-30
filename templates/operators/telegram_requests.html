@@ -395,7 +395,7 @@
                 const fields = Array.from(form.querySelectorAll('input[type="text"], textarea'));
                 return fields.some((field) => {
                     const initialValue = field.defaultValue || '';
-                    return field.value !== initialValue;
+                    return document.activeElement === field || field.value !== initialValue;
                 });
             });
         }

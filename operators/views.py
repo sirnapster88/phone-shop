@@ -102,6 +102,7 @@ def _minimal_bot_callback_reply(callback_data):
         'minimal:order': 'Напишите, что хотите заказать, одним сообщением.',
         'minimal:operator': 'Напишите сообщение для оператора одним сообщением.',
         'minimal:menu': _minimal_bot_welcome_text(),
+        'minimal:close': 'Заявка закрыта. Если понадобится, откройте меню снова.',
     }
     return replies.get(callback_data, 'Кнопка получена. Бот работает в безопасном режиме.')
 
@@ -151,10 +152,8 @@ def _minimal_operator_reply_markup():
     return {
         'inline_keyboard': [
             [
-                {'text': '✍️ Написать еще', 'callback_data': 'minimal:operator'},
-            ],
-            [
                 {'text': '📋 Открыть меню', 'callback_data': 'minimal:menu'},
+                {'text': '✅ Закрыть заявку', 'callback_data': 'minimal:close'},
             ],
         ]
     }
@@ -170,6 +169,23 @@ def _minimal_get_active_request(customer):
     return customer.requests.exclude(
         status__in=[TelegramCustomerRequest.STATUS_DONE, TelegramCustomerRequest.STATUS_CANCELLED]
     ).order_by('created_at', 'id').first()
+
+
+def _minimal_close_active_request(customer):
+    active_request = _minimal_get_active_request(customer)
+    if not active_request:
+        return None
+
+    active_request.status = TelegramCustomerRequest.STATUS_DONE
+    active_request.has_unread_customer_message = False
+    active_request.unread_messages_count = 0
+    active_request.save(update_fields=['status', 'has_unread_customer_message', 'unread_messages_count', 'updated_at'])
+
+    customer.state = TelegramCustomer.STATE_IDLE
+    customer.pending_request_type = ''
+    customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
+
+    return active_request
 
 
 def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
@@ -1344,6 +1360,8 @@ def telegram_bot_webhook(request, webhook_secret=''):
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_ORDER)
                 elif callback_data == 'minimal:operator' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
+                elif callback_data == 'minimal:close' and customer:
+                    _minimal_close_active_request(customer)
 
                 reply_text = _minimal_bot_callback_reply(callback_data)
                 reply_markup = _minimal_bot_menu() if callback_data == 'minimal:menu' else None
@@ -1385,7 +1403,10 @@ def telegram_bot_webhook(request, webhook_secret=''):
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
 
             send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
-        elif customer and customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT:
+        elif customer and (
+            customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
+            or _minimal_get_active_request(customer) is not None
+        ):
             request_obj = _minimal_create_or_append_request(
                 customer,
                 text,
@@ -1395,7 +1416,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 f'📨 Сообщение сохранено в заявку #{request_obj.id}.\n'
                 f'Передали оператору информацию по {_minimal_request_type_label(request_obj.request_type)}.'
             )
-            send_telegram_message_to_chat(chat_id, reply_text)
+            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_operator_reply_markup())
         else:
             reply_text = 'Бот работает в безопасном режиме. Нажмите /start, чтобы открыть меню.'
             send_telegram_message_to_chat(chat_id, reply_text)
