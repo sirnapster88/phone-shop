@@ -6,6 +6,7 @@ app_name = 'operators'
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('ui-preview/', views.ui_preview, name='ui_preview'),
+    path('telegram-debug-log/', views.telegram_debug_log, name='telegram_debug_log'),
     path('upload/', views.upload_pricelist, name='upload_pricelist'),
     path('process/<int:pricelist_id>/', views.process_pricelist, name='process_pricelist'),
     

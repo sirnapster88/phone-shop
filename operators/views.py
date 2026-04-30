@@ -1,6 +1,7 @@
 import json
 import logging
 import traceback
+from pathlib import Path
 from secrets import compare_digest
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -42,6 +43,13 @@ from .telegram_cleanup import process_due_cleanup_tasks
 # Create your views here.
 
 logger = logging.getLogger(__name__)
+TELEGRAM_DEBUG_LOG_PATH = Path(__file__).resolve().parent.parent / 'telegram_webhook_debug.log'
+
+
+def _append_telegram_debug_log(message):
+    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    with TELEGRAM_DEBUG_LOG_PATH.open('a', encoding='utf-8') as log_file:
+        log_file.write(f'[{timestamp}] {message}\n')
 
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
@@ -1069,9 +1077,23 @@ def ui_preview(request):
     return render(request, 'operators/ui_preview.html')
 
 
+@login_required
+def telegram_debug_log(request):
+    if TELEGRAM_DEBUG_LOG_PATH.exists():
+        content = TELEGRAM_DEBUG_LOG_PATH.read_text(encoding='utf-8')
+    else:
+        content = 'Debug log is empty.'
+
+    return JsonResponse({
+        'path': str(TELEGRAM_DEBUG_LOG_PATH),
+        'content': content[-20000:],
+    })
+
+
 @csrf_exempt
 def telegram_bot_webhook(request, webhook_secret=''):
     if request.method != 'POST':
+        _append_telegram_debug_log(f'method_not_allowed method={request.method}')
         return JsonResponse({'ok': False, 'error': 'method_not_allowed'}, status=405)
 
     expected_secret = getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '').strip()
@@ -1085,33 +1107,65 @@ def telegram_bot_webhook(request, webhook_secret=''):
             secret_matches = True
 
     if not expected_secret or not secret_matches:
+        _append_telegram_debug_log(
+            'secret_mismatch '
+            f'header_present={bool(header_secret)} path_present={bool(webhook_secret)}'
+        )
         return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
 
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except json.JSONDecodeError:
+        _append_telegram_debug_log('invalid_json')
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
-    print(
-        'TELEGRAM WEBHOOK RECEIVED '
-        f'update_id={payload.get("update_id")} keys={list(payload.keys())}',
-        flush=True,
+    _append_telegram_debug_log(
+        'webhook_received '
+        f'update_id={payload.get("update_id")} keys={list(payload.keys())}'
     )
 
     try:
-        handle_telegram_update(payload)
+        if payload.get('callback_query'):
+            callback_query = payload['callback_query']
+            callback_id = callback_query.get('id')
+            callback_data = callback_query.get('data', '')
+            _append_telegram_debug_log(
+                f'callback_received id={callback_id} data={callback_data!r}'
+            )
+            if callback_id:
+                answer_telegram_callback(callback_id, text='Бот в минимальном режиме')
+                _append_telegram_debug_log(f'callback_answered id={callback_id}')
+            return JsonResponse({'ok': True, 'mode': 'minimal'})
+
+        message = payload.get('message') or {}
+        chat = message.get('chat') or {}
+        from_user = message.get('from') or {}
+        chat_id = chat.get('id') or from_user.get('id')
+        text = (message.get('text') or '').strip()
+
+        _append_telegram_debug_log(
+            f'message_received chat_id={chat_id} from_user={from_user.get("id")} text={text!r}'
+        )
+
+        if not chat_id:
+            _append_telegram_debug_log('message_skipped_no_chat_id')
+            return JsonResponse({'ok': True, 'mode': 'minimal'})
+
+        reply_text = 'Привет' if text.startswith('/start') else 'Бот работает в минимальном режиме. Отправьте /start'
+        send_telegram_message_to_chat(chat_id, reply_text)
+        _append_telegram_debug_log(
+            f'message_sent chat_id={chat_id} reply={reply_text!r}'
+        )
     except Exception as exc:
         logger.exception(
             'Telegram webhook failed. update_id=%s keys=%s',
             payload.get('update_id'),
             list(payload.keys()),
         )
-        print(
-            'Telegram webhook failed. '
-            f"update_id={payload.get('update_id')} keys={list(payload.keys())}",
-            flush=True,
+        _append_telegram_debug_log(
+            'webhook_error '
+            f'update_id={payload.get("update_id")} error={exc!r}\n{traceback.format_exc()}'
         )
-        traceback.print_exc()
         try:
             send_operator_notification(
                 'Webhook error on Render\n'
