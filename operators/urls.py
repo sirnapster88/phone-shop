@@ -29,6 +29,7 @@ urlpatterns = [
     path('telegram-requests/', views.telegram_requests, name='telegram_requests'),
     path('telegram-requests/live/', views.telegram_requests_live, name='telegram_requests_live'),
     path('sidebar-counts/', views.sidebar_counts_api, name='sidebar_counts_api'),
+    path('telegram-bot/webhook/', views.telegram_bot_webhook, name='telegram_bot_webhook_plain'),
     path('telegram-bot/webhook/<path:webhook_secret>/', views.telegram_bot_webhook, name='telegram_bot_webhook'),
 
     path('logout/', views.app_logout, name='logout'),

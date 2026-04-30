@@ -23,13 +23,19 @@
 
 ## Telegram webhook
 
-Set the webhook to:
+Recommended webhook URL:
 
-`https://<your-render-domain>/operators/telegram-bot/webhook/<TELEGRAM_WEBHOOK_SECRET>/`
+`https://<your-render-domain>/operators/telegram-bot/webhook/`
+
+Set it together with `secret_token`, using the value of `TELEGRAM_WEBHOOK_SECRET`.
 
 Example:
 
-`https://phone-shop-demo.onrender.com/operators/telegram-bot/webhook/<secret>/`
+`https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://phone-shop-demo.onrender.com/operators/telegram-bot/webhook/&secret_token=<TELEGRAM_WEBHOOK_SECRET>`
+
+Legacy secret-in-path URL also works:
+
+`https://<your-render-domain>/operators/telegram-bot/webhook/<TELEGRAM_WEBHOOK_SECRET>/`
 
 ## Notes
 

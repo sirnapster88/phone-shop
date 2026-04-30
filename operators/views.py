@@ -1065,12 +1065,21 @@ def ui_preview(request):
 
 
 @csrf_exempt
-def telegram_bot_webhook(request, webhook_secret):
+def telegram_bot_webhook(request, webhook_secret=''):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'method_not_allowed'}, status=405)
 
     expected_secret = getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '').strip()
-    if not expected_secret or not compare_digest(webhook_secret, expected_secret):
+    header_secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '').strip()
+    secret_matches = False
+
+    if expected_secret:
+        if webhook_secret and compare_digest(webhook_secret, expected_secret):
+            secret_matches = True
+        elif header_secret and compare_digest(header_secret, expected_secret):
+            secret_matches = True
+
+    if not expected_secret or not secret_matches:
         return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
 
     try:
