@@ -1446,6 +1446,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
         chat_id = chat.get('id') or from_user.get('id')
         text = (message.get('text') or '').strip()
         customer = _minimal_upsert_telegram_customer(from_user)
+        bot_reply_sent = False
 
         _append_telegram_debug_log(
             f'message_received chat_id={chat_id} from_user={from_user.get("id")} text={text!r}'
@@ -1474,6 +1475,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
             sent_message = send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
             if customer:
                 _minimal_append_pending_message_id(customer, sent_message)
+            bot_reply_sent = True
         elif text.startswith('/menu'):
             reply_text = _minimal_bot_welcome_text()
             sent_message = send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
@@ -1482,6 +1484,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 _minimal_append_extra_message_id(active_request, sent_message)
             elif customer:
                 _minimal_append_pending_message_id(customer, sent_message)
+            bot_reply_sent = True
         elif text.startswith('/close'):
             active_request = _minimal_get_active_request(customer) if customer else None
             if active_request:
@@ -1496,6 +1499,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
             else:
                 reply_text = 'ℹ️ Сейчас нет открытой заявки.'
                 send_telegram_message_to_chat(chat_id, reply_text)
+                bot_reply_sent = True
         elif customer and (
             customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
             or _minimal_get_active_request(customer) is not None
@@ -1512,15 +1516,22 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 )
                 sent_message = send_telegram_message_to_chat(chat_id, reply_text)
                 _minimal_append_extra_message_id(request_obj, sent_message)
+                bot_reply_sent = True
             else:
                 reply_text = 'message_appended_without_bot_reply'
         else:
             reply_text = 'Бот работает в безопасном режиме. Нажмите /start, чтобы открыть меню.'
             send_telegram_message_to_chat(chat_id, reply_text)
+            bot_reply_sent = True
 
-        _append_telegram_debug_log(
-            f'message_sent chat_id={chat_id} reply={reply_text!r}'
-        )
+        if bot_reply_sent:
+            _append_telegram_debug_log(
+                f'message_sent chat_id={chat_id} reply={reply_text!r}'
+            )
+        else:
+            _append_telegram_debug_log(
+                f'message_appended chat_id={chat_id} request_continues=True'
+            )
     except Exception as exc:
         logger.exception(
             'Telegram webhook failed. update_id=%s keys=%s',
