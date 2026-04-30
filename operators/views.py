@@ -101,6 +101,7 @@ def _minimal_bot_callback_reply(callback_data):
         'minimal:availability': 'Напишите модель или вопрос по наличию одним сообщением.',
         'minimal:order': 'Напишите, что хотите заказать, одним сообщением.',
         'minimal:operator': 'Напишите сообщение для оператора одним сообщением.',
+        'minimal:menu': _minimal_bot_welcome_text(),
     }
     return replies.get(callback_data, 'Кнопка получена. Бот работает в безопасном режиме.')
 
@@ -144,6 +145,19 @@ def _minimal_request_type_label(request_type):
         TelegramCustomerRequest.TYPE_QUESTION: 'сообщению',
     }
     return labels.get(request_type, 'запросу')
+
+
+def _minimal_operator_reply_markup():
+    return {
+        'inline_keyboard': [
+            [
+                {'text': '✍️ Написать еще', 'callback_data': 'minimal:operator'},
+            ],
+            [
+                {'text': '📋 Открыть меню', 'callback_data': 'minimal:menu'},
+            ],
+        ]
+    }
 
 
 def _minimal_start_request_capture(customer, request_type):
@@ -1332,7 +1346,8 @@ def telegram_bot_webhook(request, webhook_secret=''):
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
 
                 reply_text = _minimal_bot_callback_reply(callback_data)
-                send_telegram_message_to_chat(callback_chat_id, reply_text)
+                reply_markup = _minimal_bot_menu() if callback_data == 'minimal:menu' else None
+                send_telegram_message_to_chat(callback_chat_id, reply_text, reply_markup=reply_markup)
                 _append_telegram_debug_log(
                     f'callback_message_sent chat_id={callback_chat_id} reply={reply_text!r}'
                 )
@@ -1433,6 +1448,7 @@ def telegram_requests(request):
                 send_request_message(
                     customer_request,
                     reply_text,
+                    reply_markup=_minimal_operator_reply_markup(),
                     operator=request.user,
                 )
             except Exception as exc:
