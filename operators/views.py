@@ -1092,6 +1092,12 @@ def telegram_bot_webhook(request, webhook_secret=''):
     except json.JSONDecodeError:
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
+    print(
+        'TELEGRAM WEBHOOK RECEIVED '
+        f'update_id={payload.get("update_id")} keys={list(payload.keys())}',
+        flush=True,
+    )
+
     try:
         handle_telegram_update(payload)
     except Exception as exc:

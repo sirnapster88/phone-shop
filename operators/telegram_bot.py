@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 
 from django.conf import settings
 from django.utils import timezone
@@ -555,66 +556,40 @@ def handle_message(message):
     chat_id = message.get('chat', {}).get('id') or from_user.get('id')
     text = (message.get('text') or '').strip()
 
-    if not text:
-        customer = get_or_create_telegram_customer(from_user)
-        send_welcome(chat_id, customer=customer)
+    print(
+        'MINIMAL TELEGRAM BOT MESSAGE '
+        f'chat_id={chat_id} from_user={from_user.get("id")} text={text!r}',
+        flush=True,
+    )
+
+    if not chat_id:
         return
 
     if text.startswith('/start'):
-        send_telegram_message_to_chat(chat_id, get_welcome_text())
-        try:
-            customer = get_or_create_telegram_customer(from_user)
-            delete_customer_message(customer.telegram_id, message.get('message_id'))
-
-            parts = text.split(maxsplit=1)
-            start_param = parts[1].strip() if len(parts) > 1 else ''
-
-            if start_param in REQUEST_TYPE_LABELS:
-                start_request_flow(customer, start_param)
-        except Exception:
-            pass
+        send_telegram_message_to_chat(chat_id, 'Привет')
         return
 
-    customer = get_or_create_telegram_customer(from_user)
-
-    if text.startswith('/price'):
-        send_latest_price_to_customer(customer)
-        return
-
-    if text.startswith('/close'):
-        closed_request = close_active_customer_request(customer)
-        if closed_request:
-            close_request_by_customer(
-                closed_request,
-                text=f'✅ Заявка #{closed_request.id} закрыта. Через минуту чат будет очищен.',
-            )
-        else:
-            send_telegram_message_to_chat(
-                customer.telegram_id,
-                'ℹ️ У вас нет открытых заявок.',
-            )
-        return
-
-    if customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT:
-        request_obj = create_or_append_customer_request(customer, text, telegram_message_id=message.get('message_id'))
-        send_request_message(
-            request_obj,
-            f'📨 Ваш запрос добавлен в заявку #{request_obj.id}. Скоро вам ответят.',
-            reply_markup=get_close_request_keyboard(),
-        )
-        return
-
-    request_obj = create_or_append_customer_request(customer, text, telegram_message_id=message.get('message_id'))
-    send_request_message(
-        request_obj,
-        f'📨 Сообщение добавлено в заявку #{request_obj.id}.',
-        reply_markup=get_close_request_keyboard(),
+    send_telegram_message_to_chat(
+        chat_id,
+        'Бот работает в минимальном режиме. Отправьте /start',
     )
 
 
 def handle_telegram_update(update):
+    print(
+        'MINIMAL TELEGRAM BOT UPDATE '
+        f'payload={json.dumps(update, ensure_ascii=False)[:2000]}',
+        flush=True,
+    )
+
     if update.get('callback_query'):
-        handle_callback_query(update['callback_query'])
+        callback_query = update['callback_query']
+        print(
+            'MINIMAL TELEGRAM CALLBACK '
+            f'id={callback_query.get("id")} data={callback_query.get("data")!r}',
+            flush=True,
+        )
+        answer_telegram_callback(callback_query['id'], text='Бот в минимальном режиме')
         return
 
     if update.get('message'):
