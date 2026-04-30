@@ -92,6 +92,9 @@ def _minimal_bot_menu():
                 {'text': '🛒 Оформить заказ', 'callback_data': 'minimal:order'},
                 {'text': '👨‍💼 Связаться с оператором', 'callback_data': 'minimal:operator'},
             ],
+            [
+                {'text': '✅ Закрыть заявку', 'callback_data': 'minimal:close'},
+            ],
         ]
     }
 
@@ -150,17 +153,6 @@ def _minimal_request_type_label(request_type):
     return labels.get(request_type, 'запросу')
 
 
-def _minimal_operator_reply_markup():
-    return {
-        'inline_keyboard': [
-            [
-                {'text': '📋 Открыть меню', 'callback_data': 'minimal:menu'},
-                {'text': '✅ Закрыть заявку', 'callback_data': 'minimal:close'},
-            ],
-        ]
-    }
-
-
 def _minimal_start_request_capture(customer, request_type):
     customer.state = TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
     customer.pending_request_type = request_type
@@ -194,6 +186,7 @@ def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
     cleaned_text = (text or '').strip()
     request_type = customer.pending_request_type or TelegramCustomerRequest.TYPE_QUESTION
     active_request = _minimal_get_active_request(customer)
+    created = active_request is None
 
     if active_request is None:
         publication = TelegramPublication.objects.filter(
@@ -240,7 +233,7 @@ def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
     customer.pending_request_type = ''
     customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
 
-    return active_request
+    return active_request, created
 
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
@@ -1413,20 +1406,33 @@ def telegram_bot_webhook(request, webhook_secret=''):
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
 
             send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+        elif text.startswith('/menu'):
+            reply_text = _minimal_bot_welcome_text()
+            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+        elif text.startswith('/close'):
+            closed_request = _minimal_close_active_request(customer) if customer else None
+            reply_text = (
+                f'✅ Заявка #{closed_request.id} закрыта.' if closed_request
+                else 'ℹ️ Сейчас нет открытой заявки.'
+            )
+            send_telegram_message_to_chat(chat_id, reply_text)
         elif customer and (
             customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
             or _minimal_get_active_request(customer) is not None
         ):
-            request_obj = _minimal_create_or_append_request(
+            request_obj, created = _minimal_create_or_append_request(
                 customer,
                 text,
                 telegram_message_id=message.get('message_id'),
             )
-            reply_text = (
-                f'📨 Сообщение сохранено в заявку #{request_obj.id}.\n'
-                f'Передали оператору информацию по {_minimal_request_type_label(request_obj.request_type)}.'
-            )
-            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_operator_reply_markup())
+            if created:
+                reply_text = (
+                    f'📨 Сообщение сохранено в заявку #{request_obj.id}.\n'
+                    f'Передали оператору информацию по {_minimal_request_type_label(request_obj.request_type)}.'
+                )
+                send_telegram_message_to_chat(chat_id, reply_text)
+            else:
+                reply_text = 'message_appended_without_bot_reply'
         else:
             reply_text = 'Бот работает в безопасном режиме. Нажмите /start, чтобы открыть меню.'
             send_telegram_message_to_chat(chat_id, reply_text)
@@ -1479,7 +1485,6 @@ def telegram_requests(request):
                 send_request_message(
                     customer_request,
                     reply_text,
-                    reply_markup=_minimal_operator_reply_markup(),
                     operator=request.user,
                 )
             except Exception as exc:
