@@ -55,6 +55,15 @@ def _append_telegram_debug_log(message):
     except Exception:
         pass
 
+
+def _mask_secret(value, keep_start=6, keep_end=4):
+    value = (value or '').strip()
+    if not value:
+        return ''
+    if len(value) <= keep_start + keep_end:
+        return value
+    return f'{value[:keep_start]}...{value[-keep_end:]}'
+
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
     return redirect('operators:dashboard')
@@ -1091,6 +1100,28 @@ def telegram_debug_log(request):
     return JsonResponse({
         'path': str(TELEGRAM_DEBUG_LOG_PATH),
         'content': content[-20000:],
+    })
+
+
+@login_required
+def env_debug(request):
+    bot_token = getattr(settings, 'TELEGRAM_BOT_TOKEN', '').strip()
+    token_prefix = bot_token.split(':', 1)[0] if ':' in bot_token else ''
+    chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', '').strip()
+    operator_chat_id = getattr(settings, 'TELEGRAM_OPERATOR_CHAT_ID', '').strip()
+
+    return JsonResponse({
+        'django_debug': settings.DEBUG,
+        'allowed_hosts': list(settings.ALLOWED_HOSTS),
+        'csrf_trusted_origins': list(getattr(settings, 'CSRF_TRUSTED_ORIGINS', [])),
+        'telegram_bot_token_masked': _mask_secret(bot_token, keep_start=10, keep_end=6),
+        'telegram_bot_token_prefix': token_prefix,
+        'telegram_webhook_secret_masked': _mask_secret(getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '')),
+        'telegram_chat_id_masked': _mask_secret(chat_id, keep_start=6, keep_end=4),
+        'telegram_operator_chat_id_masked': _mask_secret(operator_chat_id, keep_start=6, keep_end=4),
+        'telegram_bot_username': getattr(settings, 'TELEGRAM_BOT_USERNAME', '').strip(),
+        'webhook_debug_log_path': str(TELEGRAM_DEBUG_LOG_PATH),
+        'webhook_debug_log_exists': TELEGRAM_DEBUG_LOG_PATH.exists(),
     })
 
 
