@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 from secrets import compare_digest
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -1099,6 +1100,12 @@ def telegram_bot_webhook(request, webhook_secret=''):
             payload.get('update_id'),
             list(payload.keys()),
         )
+        print(
+            'Telegram webhook failed. '
+            f"update_id={payload.get('update_id')} keys={list(payload.keys())}",
+            flush=True,
+        )
+        traceback.print_exc()
         return JsonResponse({'ok': False, 'error': 'internal_error'}, status=500)
 
     return JsonResponse({'ok': True})
