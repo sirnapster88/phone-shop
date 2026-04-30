@@ -1391,22 +1391,38 @@ def telegram_bot_webhook(request, webhook_secret=''):
             _append_telegram_debug_log(
                 f'callback_received id={callback_id} data={callback_data!r}'
             )
-            if callback_id:
-                answer_telegram_callback(callback_id, text='Принято')
-                _append_telegram_debug_log(f'callback_answered id={callback_id}')
             if callback_chat_id:
                 customer = _minimal_upsert_telegram_customer(callback_user)
                 if callback_data == 'minimal:price_request' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_PRICE)
+                    if callback_id:
+                        answer_telegram_callback(callback_id, text='Напишите модель или вопрос по цене.')
+                        _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
                 elif callback_data == 'minimal:availability' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_AVAILABILITY)
+                    if callback_id:
+                        answer_telegram_callback(callback_id, text='Напишите модель или вопрос по наличию.')
+                        _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
                 elif callback_data == 'minimal:order' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_ORDER)
+                    if callback_id:
+                        answer_telegram_callback(callback_id, text='Напишите, что хотите заказать.')
+                        _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
                 elif callback_data == 'minimal:operator' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
+                    if callback_id:
+                        answer_telegram_callback(callback_id, text='Напишите сообщение для оператора.')
+                        _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
                 elif callback_data == 'minimal:close' and customer:
                     active_request = _minimal_get_active_request(customer)
                     if active_request:
+                        if callback_id:
+                            answer_telegram_callback(callback_id)
+                            _append_telegram_debug_log(f'callback_answered id={callback_id} mode=silent')
                         close_request_by_customer(
                             active_request,
                             text=f'✅ Заявка #{active_request.id} закрыта. Через минуту чат будет очищен.',
@@ -1418,16 +1434,20 @@ def telegram_bot_webhook(request, webhook_secret=''):
                             f'callback_close_processed request_id={active_request.id} chat_id={callback_chat_id}'
                         )
                     else:
-                        sent_message = send_telegram_message_to_chat(
-                            callback_chat_id,
-                            'ℹ️ Сейчас нет открытой заявки.'
-                        )
-                        _append_telegram_debug_log(
-                            f'callback_message_sent chat_id={callback_chat_id} reply={"ℹ️ Сейчас нет открытой заявки."!r}'
-                        )
+                        if callback_id:
+                            answer_telegram_callback(callback_id, text='Сейчас нет открытой заявки.')
+                            _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
                     return JsonResponse({'ok': True, 'mode': 'minimal'})
 
                 reply_text = _minimal_bot_callback_reply(callback_data)
+                if callback_id and callback_data == 'minimal:price':
+                    answer_telegram_callback(callback_id, text=reply_text)
+                    _append_telegram_debug_log(f'callback_answered id={callback_id} mode=ephemeral')
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
+
+                if callback_id:
+                    answer_telegram_callback(callback_id)
+                    _append_telegram_debug_log(f'callback_answered id={callback_id} mode=silent')
                 reply_markup = _minimal_bot_menu() if callback_data == 'minimal:menu' else None
                 sent_message = send_telegram_message_to_chat(callback_chat_id, reply_text, reply_markup=reply_markup)
                 active_request = _minimal_get_active_request(customer) if customer else None

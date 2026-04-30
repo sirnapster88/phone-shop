@@ -706,19 +706,90 @@ function getSimPriority(simType) {
     return 4;
 }
 
+function getItemIdentity(item) {
+    return [
+        item.category || '',
+        item.brand || '',
+        item.model || '',
+        item.memory || '',
+        item.color || '',
+        item.region || '',
+        item.simType || '',
+        item.specs || '',
+        item.finalPrice || ''
+    ].join('|').toLowerCase();
+}
+
+function markUsedItems(usedKeys, items) {
+    items.forEach(item => usedKeys.add(getItemIdentity(item)));
+}
+
+function inferCategory(item) {
+    const explicitCategory = (item.category || '').trim().toLowerCase();
+    if (explicitCategory) {
+        return explicitCategory;
+    }
+
+    const brand = (item.brand || '').trim().toLowerCase();
+    const model = (item.model || '').trim().toLowerCase();
+    const specs = (item.specs || '').trim().toLowerCase();
+    const combined = `${brand} ${model} ${specs}`;
+
+    if (brand === 'iphone') return 'phone';
+    if (brand === 'ipad' || model.startsWith('ipad')) return 'tablet';
+    if (brand === 'airpods' || model.startsWith('airpods')) return 'accessory';
+    if (brand === 'apple pencil' || combined.includes('pencil')) return 'accessory';
+    if (brand === 'apple watch' || model.startsWith('watch') || model.startsWith('aw')) return 'watch';
+    if (brand === 'macbook' || brand === 'mac mini' || model.startsWith('macbook') || model.startsWith('mac mini')) return 'laptop';
+    if (brand === 'dyson' || model.startsWith('dyson')) return 'appliance';
+
+    const phoneBrands = ['samsung', 'xiaomi', 'honor', 'huawei', 'google', 'oneplus', 'nothing', 'realme', 'vivo', 'oppo'];
+    if (phoneBrands.includes(brand)) return 'phone';
+
+    return '';
+}
+
 function isIPhone(item) {
-    return item.category === 'phone' && item.brand === 'iPhone';
+    return inferCategory(item) === 'phone' && (item.brand || '').trim().toLowerCase() === 'iphone';
 }
 
 function isAndroidPhone(item) {
-    return item.category === 'phone' && item.brand && item.brand !== 'iPhone';
+    return inferCategory(item) === 'phone' && item.brand && (item.brand || '').trim().toLowerCase() !== 'iphone';
 }
 
 function isBrokenPhoneItem(item) {
-    if (item.category !== 'phone') return false;
+    if (inferCategory(item) !== 'phone') return false;
 
     const storage = getStorageLabel(item);
     return !storage && !item.color && !item.region && !item.simType && !item.specs;
+}
+
+function isDysonAppliance(item) {
+    return inferCategory(item) === 'appliance' && (item.brand || '').trim().toLowerCase() === 'dyson';
+}
+
+function isAirPodsAccessory(item) {
+    return inferCategory(item) === 'accessory' && (item.brand || '').trim().toLowerCase() === 'airpods';
+}
+
+function isWatchItem(item) {
+    return inferCategory(item) === 'watch';
+}
+
+function isPencilAccessory(item) {
+    return inferCategory(item) === 'accessory' && (item.brand || '').trim().toLowerCase() === 'apple pencil';
+}
+
+function isTabletItem(item) {
+    return inferCategory(item) === 'tablet';
+}
+
+function isMacMiniItem(item) {
+    return inferCategory(item) === 'laptop' && (item.brand || '').trim().toLowerCase() === 'mac mini';
+}
+
+function isLaptopItem(item) {
+    return inferCategory(item) === 'laptop' && (item.brand || '').trim().toLowerCase() !== 'mac mini';
 }
 
 function getIPhoneGroupTitle(model) {
@@ -971,6 +1042,33 @@ function buildAndroidLine(item) {
     return parts.join(' ').trim();
 }
 
+function buildGenericLine(item) {
+    const parts = [];
+
+    if (item.brand && (!item.model || !item.model.toLowerCase().startsWith(item.brand.toLowerCase()))) {
+        parts.push(formatTelegramModel(item.brand));
+    }
+
+    if (item.model) parts.push(formatTelegramModel(item.model));
+
+    const storage = getStorageLabel(item);
+    if (storage) parts.push(storage);
+
+    if (item.specs && (!storage || item.specs !== storage)) {
+        parts.push(item.specs);
+    }
+
+    if (item.color) parts.push(item.color.toLowerCase());
+
+    const flag = regionToFlag(item.region);
+    if (flag) parts.push(flag);
+
+    if (item.simType) parts.push(item.simType.toLowerCase());
+    if (item.finalPrice) parts.push(String(parseInt(item.finalPrice, 10)));
+
+    return parts.join(' ').trim();
+}
+
 function pushPhoneItems(output, items, lineBuilder) {
     let prevSim = null;
     let prevStorage = null;
@@ -1117,6 +1215,9 @@ function generateTelegramText() {
         const simRawEl = row.querySelector('.row-sim-raw');
         const specsRawEl = row.querySelector('.row-specs-raw');
         const finalPriceEl = row.querySelector('.row-final-price');
+        const basePriceEl = row.querySelector('.row-base-price');
+        const fallbackPrice = basePriceEl ? String(basePriceEl.dataset.value || '').trim() : '';
+        const finalPriceValue = finalPriceEl ? finalPriceEl.value.trim() : '';
 
         const item = {
             category: categoryEl ? categoryEl.textContent.trim() : '',
@@ -1127,7 +1228,7 @@ function generateTelegramText() {
             region: regionRawEl ? regionRawEl.textContent.trim() : '',
             simType: simRawEl ? simRawEl.textContent.trim() : '',
             specs: specsRawEl ? specsRawEl.textContent.trim() : '',
-            finalPrice: finalPriceEl ? finalPriceEl.value.trim() : ''
+            finalPrice: finalPriceValue || fallbackPrice
         };
 
         if (!item.model || !item.finalPrice) return;
@@ -1142,59 +1243,60 @@ function generateTelegramText() {
         ''
     ];
 
-    const dysonItems = items.filter(item => item.category === 'appliance');
+    const usedKeys = new Set();
+
+    const dysonItems = items.filter(isDysonAppliance);
     if (dysonItems.length) {
         output.push('Dyson');
         dysonItems.forEach(item => output.push(buildDysonLine(item)));
+        markUsedItems(usedKeys, dysonItems);
         pushBlankLine(output);
     }
 
-    const airPodsItems = items.filter(
-        item => item.category === 'accessory' && item.brand === 'AirPods'
-    );
+    const airPodsItems = items.filter(isAirPodsAccessory);
     if (airPodsItems.length) {
         airPodsItems.forEach(item => output.push(buildAirPodsLine(item)));
+        markUsedItems(usedKeys, airPodsItems);
         pushBlankLine(output);
     }
 
-    const watchItems = items.filter(item => item.category === 'watch');
+    const watchItems = items.filter(isWatchItem);
     if (watchItems.length) {
         output.push(formatSectionTitle('⌚️', 'Apple Watch'));
         pushWatchItemsWithBreaks(output, watchItems);
+        markUsedItems(usedKeys, watchItems);
         pushBlankLine(output);
     }
 
-    const pencilItems = items.filter(
-        item => item.category === 'accessory' && item.brand === 'Apple Pencil'
-    );
-    const tabletItems = items.filter(item => item.category === 'tablet');
+    const pencilItems = items.filter(isPencilAccessory);
+    const tabletItems = items.filter(isTabletItem);
     if (pencilItems.length || tabletItems.length) {
         output.push(formatSectionTitle('📋', 'iPad'));
 
         pencilItems.forEach(item => output.push(buildPencilLine(item)));
+        markUsedItems(usedKeys, pencilItems);
 
         if (pencilItems.length && tabletItems.length) {
             pushBlankLine(output);
         }
 
         pushTabletItemsWithBreaks(output, tabletItems);
+        markUsedItems(usedKeys, tabletItems);
         pushBlankLine(output);
     }
 
-    const macMiniItems = items.filter(
-        item => item.category === 'laptop' && item.brand === 'Mac Mini'
-    );
+    const macMiniItems = items.filter(isMacMiniItem);
     if (macMiniItems.length) {
         macMiniItems.forEach(item => output.push(buildMacMiniLine(item)));
+        markUsedItems(usedKeys, macMiniItems);
         pushBlankLine(output);
     }
 
-    const laptopItems = items.filter(
-        item => item.category === 'laptop' && item.brand !== 'Mac Mini'
-    );
+    const laptopItems = items.filter(isLaptopItem);
     if (laptopItems.length) {
         output.push(formatSectionTitle('💻', 'Ноутбуки с гравировкой'));
         laptopItems.forEach(item => output.push(buildLaptopLine(item)));
+        markUsedItems(usedKeys, laptopItems);
         pushBlankLine(output);
     }
 
@@ -1229,6 +1331,7 @@ function generateTelegramText() {
 
         output.push(formatSectionTitle('📱', groupTitle));
         pushPhoneItems(output, iphoneGroups[groupTitle], buildIPhoneLine);
+        markUsedItems(usedKeys, iphoneGroups[groupTitle]);
         pushBlankLine(output);
     });
 
@@ -1254,6 +1357,16 @@ function generateTelegramText() {
             }
         });
 
+        markUsedItems(usedKeys, androidItems);
+        pushBlankLine(output);
+    }
+
+    const remainingItems = items.filter(item => !usedKeys.has(getItemIdentity(item)));
+    if (remainingItems.length) {
+        output.push(formatSectionTitle('🧾', 'Разное'));
+        remainingItems
+            .sort((a, b) => buildGenericLine(a).localeCompare(buildGenericLine(b)))
+            .forEach(item => output.push(buildGenericLine(item)));
         pushBlankLine(output);
     }
 
