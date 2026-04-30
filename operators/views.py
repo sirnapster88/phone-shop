@@ -96,12 +96,118 @@ def _minimal_bot_menu():
 def _minimal_bot_callback_reply(callback_data):
     replies = {
         'minimal:price': 'Прайс будет возвращен на следующем этапе восстановления.',
-        'minimal:price_request': 'Сценарий уточнения цены скоро вернем. База Telegram уже жива.',
-        'minimal:availability': 'Сценарий наличия скоро вернем. Сейчас тестируем только стабильный контур.',
-        'minimal:order': 'Оформление заказа подключим следующим этапом после проверки меню.',
-        'minimal:operator': 'Связь с оператором вернем после восстановления заявок.',
+        'minimal:price_request': 'Напишите модель или вопрос по цене одним сообщением.',
+        'minimal:availability': 'Напишите модель или вопрос по наличию одним сообщением.',
+        'minimal:order': 'Напишите, что хотите заказать, одним сообщением.',
+        'minimal:operator': 'Напишите сообщение для оператора одним сообщением.',
     }
     return replies.get(callback_data, 'Кнопка получена. Бот работает в безопасном режиме.')
+
+
+def _minimal_upsert_telegram_customer(user_data):
+    telegram_id = user_data.get('id')
+    if not telegram_id:
+        return None
+
+    defaults = {
+        'username': user_data.get('username', '') or '',
+        'first_name': user_data.get('first_name', '') or '',
+        'last_name': user_data.get('last_name', '') or '',
+        'language_code': user_data.get('language_code', '') or '',
+    }
+    customer, created = TelegramCustomer.objects.get_or_create(
+        telegram_id=telegram_id,
+        defaults=defaults,
+    )
+
+    if not created:
+        changed_fields = []
+        for field, value in defaults.items():
+            if getattr(customer, field) != value:
+                setattr(customer, field, value)
+                changed_fields.append(field)
+        if changed_fields:
+            changed_fields.extend(['updated_at', 'last_seen_at'])
+            customer.save(update_fields=changed_fields)
+        else:
+            customer.save(update_fields=['updated_at', 'last_seen_at'])
+
+    return customer
+
+
+def _minimal_request_type_label(request_type):
+    labels = {
+        TelegramCustomerRequest.TYPE_PRICE: 'цене',
+        TelegramCustomerRequest.TYPE_AVAILABILITY: 'наличию',
+        TelegramCustomerRequest.TYPE_ORDER: 'заказу',
+        TelegramCustomerRequest.TYPE_QUESTION: 'сообщению',
+    }
+    return labels.get(request_type, 'запросу')
+
+
+def _minimal_start_request_capture(customer, request_type):
+    customer.state = TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
+    customer.pending_request_type = request_type
+    customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
+
+
+def _minimal_get_active_request(customer):
+    return customer.requests.exclude(
+        status__in=[TelegramCustomerRequest.STATUS_DONE, TelegramCustomerRequest.STATUS_CANCELLED]
+    ).order_by('created_at', 'id').first()
+
+
+def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
+    cleaned_text = (text or '').strip()
+    request_type = customer.pending_request_type or TelegramCustomerRequest.TYPE_QUESTION
+    active_request = _minimal_get_active_request(customer)
+
+    if active_request is None:
+        publication = TelegramPublication.objects.filter(
+            kind=TelegramPublication.KIND_PRICE,
+            is_active=True,
+        ).first()
+        active_request = TelegramCustomerRequest.objects.create(
+            customer=customer,
+            request_type=request_type,
+            status=TelegramCustomerRequest.STATUS_NEW,
+            publication=publication,
+            product_query=cleaned_text,
+            client_message=cleaned_text,
+            telegram_message_id=telegram_message_id,
+            has_unread_customer_message=True,
+            unread_messages_count=1,
+        )
+    else:
+        active_request.request_type = request_type or active_request.request_type
+        active_request.client_message = cleaned_text
+        active_request.has_unread_customer_message = True
+        active_request.unread_messages_count = (active_request.unread_messages_count or 0) + 1
+        if not active_request.product_query:
+            active_request.product_query = cleaned_text
+        active_request.save(
+            update_fields=[
+                'request_type',
+                'client_message',
+                'has_unread_customer_message',
+                'unread_messages_count',
+                'product_query',
+                'updated_at',
+            ]
+        )
+
+    TelegramCustomerMessage.objects.create(
+        request=active_request,
+        sender_type=TelegramCustomerMessage.SENDER_CUSTOMER,
+        text=cleaned_text,
+        telegram_message_id=telegram_message_id,
+    )
+
+    customer.state = TelegramCustomer.STATE_IDLE
+    customer.pending_request_type = ''
+    customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
+
+    return active_request
 
 def index(request):
     """Главная страница - перенаправляем на кабинет оператора"""
@@ -1206,6 +1312,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
             callback_message = callback_query.get('message') or {}
             callback_chat = callback_message.get('chat') or {}
             callback_chat_id = callback_chat.get('id')
+            callback_user = callback_query.get('from') or {}
             _append_telegram_debug_log(
                 f'callback_received id={callback_id} data={callback_data!r}'
             )
@@ -1213,6 +1320,16 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 answer_telegram_callback(callback_id, text='Принято')
                 _append_telegram_debug_log(f'callback_answered id={callback_id}')
             if callback_chat_id:
+                customer = _minimal_upsert_telegram_customer(callback_user)
+                if callback_data == 'minimal:price_request' and customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_PRICE)
+                elif callback_data == 'minimal:availability' and customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_AVAILABILITY)
+                elif callback_data == 'minimal:order' and customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_ORDER)
+                elif callback_data == 'minimal:operator' and customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
+
                 reply_text = _minimal_bot_callback_reply(callback_data)
                 send_telegram_message_to_chat(callback_chat_id, reply_text)
                 _append_telegram_debug_log(
@@ -1225,6 +1342,7 @@ def telegram_bot_webhook(request, webhook_secret=''):
         from_user = message.get('from') or {}
         chat_id = chat.get('id') or from_user.get('id')
         text = (message.get('text') or '').strip()
+        customer = _minimal_upsert_telegram_customer(from_user)
 
         _append_telegram_debug_log(
             f'message_received chat_id={chat_id} from_user={from_user.get("id")} text={text!r}'
@@ -1239,12 +1357,29 @@ def telegram_bot_webhook(request, webhook_secret=''):
             reply_text = _minimal_bot_welcome_text()
             if start_param == 'price':
                 reply_text += '\n\nОткрыт сценарий: прайс / цена и наличие.'
+                if customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_PRICE)
             elif start_param == 'order':
                 reply_text += '\n\nОткрыт сценарий: оформление заказа.'
+                if customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_ORDER)
             elif start_param == 'question':
                 reply_text += '\n\nОткрыт сценарий: связь с оператором.'
+                if customer:
+                    _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
 
             send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+        elif customer and customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT:
+            request_obj = _minimal_create_or_append_request(
+                customer,
+                text,
+                telegram_message_id=message.get('message_id'),
+            )
+            reply_text = (
+                f'📨 Сообщение сохранено в заявку #{request_obj.id}.\n'
+                f'Передали оператору информацию по {_minimal_request_type_label(request_obj.request_type)}.'
+            )
+            send_telegram_message_to_chat(chat_id, reply_text)
         else:
             reply_text = 'Бот работает в безопасном режиме. Нажмите /start, чтобы открыть меню.'
             send_telegram_message_to_chat(chat_id, reply_text)
