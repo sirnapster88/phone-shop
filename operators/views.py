@@ -42,7 +42,7 @@ from .telegram_service import (
 )
 from django.contrib.auth import logout
 from .telegram_bot import get_active_customer_request, get_channel_entry_keyboard, handle_telegram_update
-from .telegram_bot import close_request_and_notify_customer
+from .telegram_bot import close_request_and_notify_customer, close_request_by_customer
 from .telegram_bot import send_request_message
 from .telegram_cleanup import process_due_cleanup_tasks
 # Create your views here.
@@ -159,6 +159,23 @@ def _minimal_start_request_capture(customer, request_type):
     customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
 
 
+def _minimal_append_pending_message_id(customer, sent_message):
+    if not customer or not sent_message:
+        return
+
+    message_id = sent_message.get('message_id') if isinstance(sent_message, dict) else None
+    if not message_id:
+        return
+
+    pending_ids = list(customer.pending_chat_message_ids or [])
+    if message_id in pending_ids:
+        return
+
+    pending_ids.append(message_id)
+    customer.pending_chat_message_ids = pending_ids
+    customer.save(update_fields=['pending_chat_message_ids', 'updated_at', 'last_seen_at'])
+
+
 def _minimal_get_active_request(customer):
     return customer.requests.exclude(
         status__in=[TelegramCustomerRequest.STATUS_DONE, TelegramCustomerRequest.STATUS_CANCELLED]
@@ -182,6 +199,23 @@ def _minimal_close_active_request(customer):
     return active_request
 
 
+def _minimal_append_extra_message_id(request_obj, sent_message):
+    if not request_obj or not sent_message:
+        return
+
+    message_id = sent_message.get('message_id') if isinstance(sent_message, dict) else None
+    if not message_id:
+        return
+
+    extra_ids = list(request_obj.extra_message_ids or [])
+    if message_id in extra_ids:
+        return
+
+    extra_ids.append(message_id)
+    request_obj.extra_message_ids = extra_ids
+    request_obj.save(update_fields=['extra_message_ids', 'updated_at'])
+
+
 def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
     cleaned_text = (text or '').strip()
     request_type = customer.pending_request_type or ''
@@ -194,6 +228,7 @@ def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
             kind=TelegramPublication.KIND_PRICE,
             is_active=True,
         ).first()
+        pending_message_ids = list(customer.pending_chat_message_ids or [])
         active_request = TelegramCustomerRequest.objects.create(
             customer=customer,
             request_type=request_type,
@@ -204,7 +239,11 @@ def _minimal_create_or_append_request(customer, text, telegram_message_id=None):
             telegram_message_id=telegram_message_id,
             has_unread_customer_message=True,
             unread_messages_count=1,
+            extra_message_ids=pending_message_ids,
         )
+        if pending_message_ids:
+            customer.pending_chat_message_ids = []
+            customer.save(update_fields=['pending_chat_message_ids', 'updated_at', 'last_seen_at'])
     else:
         active_request.client_message = cleaned_text
         active_request.has_unread_customer_message = True
@@ -1366,11 +1405,36 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 elif callback_data == 'minimal:operator' and customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
                 elif callback_data == 'minimal:close' and customer:
-                    _minimal_close_active_request(customer)
+                    active_request = _minimal_get_active_request(customer)
+                    if active_request:
+                        close_request_by_customer(
+                            active_request,
+                            text=f'✅ Заявка #{active_request.id} закрыта. Через минуту чат будет очищен.',
+                        )
+                        customer.state = TelegramCustomer.STATE_IDLE
+                        customer.pending_request_type = ''
+                        customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
+                        _append_telegram_debug_log(
+                            f'callback_close_processed request_id={active_request.id} chat_id={callback_chat_id}'
+                        )
+                    else:
+                        sent_message = send_telegram_message_to_chat(
+                            callback_chat_id,
+                            'ℹ️ Сейчас нет открытой заявки.'
+                        )
+                        _append_telegram_debug_log(
+                            f'callback_message_sent chat_id={callback_chat_id} reply={"ℹ️ Сейчас нет открытой заявки."!r}'
+                        )
+                    return JsonResponse({'ok': True, 'mode': 'minimal'})
 
                 reply_text = _minimal_bot_callback_reply(callback_data)
                 reply_markup = _minimal_bot_menu() if callback_data == 'minimal:menu' else None
-                send_telegram_message_to_chat(callback_chat_id, reply_text, reply_markup=reply_markup)
+                sent_message = send_telegram_message_to_chat(callback_chat_id, reply_text, reply_markup=reply_markup)
+                active_request = _minimal_get_active_request(customer) if customer else None
+                if active_request:
+                    _minimal_append_extra_message_id(active_request, sent_message)
+                elif customer:
+                    _minimal_append_pending_message_id(customer, sent_message)
                 _append_telegram_debug_log(
                     f'callback_message_sent chat_id={callback_chat_id} reply={reply_text!r}'
                 )
@@ -1407,17 +1471,31 @@ def telegram_bot_webhook(request, webhook_secret=''):
                 if customer:
                     _minimal_start_request_capture(customer, TelegramCustomerRequest.TYPE_QUESTION)
 
-            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+            sent_message = send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+            if customer:
+                _minimal_append_pending_message_id(customer, sent_message)
         elif text.startswith('/menu'):
             reply_text = _minimal_bot_welcome_text()
-            send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+            sent_message = send_telegram_message_to_chat(chat_id, reply_text, reply_markup=_minimal_bot_menu())
+            active_request = _minimal_get_active_request(customer) if customer else None
+            if active_request:
+                _minimal_append_extra_message_id(active_request, sent_message)
+            elif customer:
+                _minimal_append_pending_message_id(customer, sent_message)
         elif text.startswith('/close'):
-            closed_request = _minimal_close_active_request(customer) if customer else None
-            reply_text = (
-                f'✅ Заявка #{closed_request.id} закрыта.' if closed_request
-                else 'ℹ️ Сейчас нет открытой заявки.'
-            )
-            send_telegram_message_to_chat(chat_id, reply_text)
+            active_request = _minimal_get_active_request(customer) if customer else None
+            if active_request:
+                close_request_by_customer(
+                    active_request,
+                    text=f'✅ Заявка #{active_request.id} закрыта. Через минуту чат будет очищен.',
+                )
+                customer.state = TelegramCustomer.STATE_IDLE
+                customer.pending_request_type = ''
+                customer.save(update_fields=['state', 'pending_request_type', 'updated_at', 'last_seen_at'])
+                reply_text = f'✅ Заявка #{active_request.id} закрыта. Через минуту чат будет очищен.'
+            else:
+                reply_text = 'ℹ️ Сейчас нет открытой заявки.'
+                send_telegram_message_to_chat(chat_id, reply_text)
         elif customer and (
             customer.state == TelegramCustomer.STATE_AWAITING_REQUEST_TEXT
             or _minimal_get_active_request(customer) is not None
@@ -1432,7 +1510,8 @@ def telegram_bot_webhook(request, webhook_secret=''):
                     f'📨 Сообщение сохранено в заявку #{request_obj.id}.\n'
                     f'Передали оператору информацию по {_minimal_request_type_label(request_obj.request_type)}.'
                 )
-                send_telegram_message_to_chat(chat_id, reply_text)
+                sent_message = send_telegram_message_to_chat(chat_id, reply_text)
+                _minimal_append_extra_message_id(request_obj, sent_message)
             else:
                 reply_text = 'message_appended_without_bot_reply'
         else:
