@@ -6,6 +6,7 @@ from pathlib import Path
 from secrets import compare_digest
 
 from django.conf import settings
+from django.core.cache import cache
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -48,6 +49,7 @@ from .telegram_cleanup import process_due_cleanup_tasks
 
 logger = logging.getLogger(__name__)
 TELEGRAM_DEBUG_LOG_PATH = Path(tempfile.gettempdir()) / 'telegram_webhook_debug.log'
+TELEGRAM_UPDATE_CACHE_TTL = 60 * 15
 
 
 def _append_telegram_debug_log(message):
@@ -1334,6 +1336,14 @@ def telegram_bot_webhook(request, webhook_secret=''):
         'webhook_received '
         f'update_id={payload.get("update_id")} keys={list(payload.keys())}'
     )
+
+    update_id = payload.get('update_id')
+    if update_id is not None:
+        cache_key = f'telegram-webhook-update:{update_id}'
+        if cache.get(cache_key):
+            _append_telegram_debug_log(f'webhook_duplicate_ignored update_id={update_id}')
+            return JsonResponse({'ok': True, 'duplicate': True})
+        cache.set(cache_key, True, TELEGRAM_UPDATE_CACHE_TTL)
 
     try:
         if payload.get('callback_query'):
